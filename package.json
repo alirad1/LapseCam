@@ -1,0 +1,11 @@
+{
+  "name": "lapsecam",
+  "productName": "LapseCam",
+  "version": "0.1.0",
+  "description": "Record sped up videos of your study sessions with no editing.",
+  "author": "Ali Rad",
+  "license": "MIT",
+  "main": "src/main/main.js",
+  "scripts": { "start": "electron ." },
+  "devDependencies": { "electron": "^31.7.7" }
+}
