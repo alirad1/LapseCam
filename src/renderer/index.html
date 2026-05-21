@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self' mediastream:" />
+  <title>LapseCam</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body data-theme="purple">
+
+  <!-- Preview -->
+  <div class="preview-area">
+    <div class="preview-stage">
+      <canvas id="previewCanvas" width="1280" height="720"></canvas>
+      <div id="previewHint" class="preview-hint" hidden>
+        Drag the camera box to move it. Drag the corner handle to resize.
+      </div>
+      <div id="previewMsg" class="preview-msg">Starting preview&hellip;</div>
+    </div>
+  </div>
+
+  <!-- Encode progress strip -->
+  <div class="encode-strip" id="encodeArea" hidden>
+    <div class="progress-track"><div class="progress-fill" id="encodeFill"></div></div>
+    <span id="encodeLabel" class="encode-label">Creating video&hellip; 0%</span>
+  </div>
+
+  <!-- Dock row -->
+  <div class="docks">
+
+    <section class="dock" id="modeDock">
+      <header>Capture Mode</header>
+      <div class="dock-body">
+        <div class="select-list" id="modeGroup">
+          <div class="select-item" data-mode="webcam">Webcam only</div>
+          <div class="select-item" data-mode="screen">Screen only</div>
+          <div class="select-item active" data-mode="screen-overlay">Screen + Webcam</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="dock" id="sourceDock">
+      <header>Source</header>
+      <div class="dock-body form">
+        <div class="field" id="sourceLabel">
+          <label for="sourceSelect">Screen or window</label>
+          <div class="field-row">
+            <select id="sourceSelect"></select>
+            <button id="refreshSources" class="btn slim" title="Refresh source list">Refresh</button>
+          </div>
+        </div>
+        <div class="field" id="webcamLabel">
+          <label for="webcamSelect">Camera</label>
+          <select id="webcamSelect"></select>
+        </div>
+      </div>
+    </section>
+
+    <section class="dock controls-dock" id="controlsDock">
+      <header>Controls</header>
+      <div class="dock-body controls">
+        <button id="recordBtn" class="btn primary"><span id="recordBtnLabel">Start Recording</span></button>
+        <button id="stopBtn" class="btn" disabled>Stop &amp; Save</button>
+        <button id="settingsBtn" class="btn">Settings</button>
+        <button id="openFolder" class="btn">Open Output Folder</button>
+      </div>
+    </section>
+
+    <section class="dock" id="speedDock">
+      <header>Speed</header>
+      <div class="dock-body form">
+        <div class="field">
+          <label for="speedSelect">Video speed</label>
+          <select id="speedSelect">
+            <option value="30">30&times; faster</option>
+            <option value="60">60&times; faster</option>
+            <option value="150">150&times; faster (default)</option>
+            <option value="300">300&times; faster</option>
+            <option value="600">600&times; faster</option>
+            <option value="custom">Custom (set in Settings)</option>
+          </select>
+        </div>
+        <div class="speed-summary" id="speedSummary"></div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Status bar -->
+  <div class="statusbar">
+    <span class="state-dot" id="stateDot"></span>
+    <span id="statusLine" class="status-text"></span>
+    <span id="resultWrap" hidden>Saved: <button id="resultLink" class="link-btn"></button></span>
+    <span class="statusbar-spacer"></span>
+    <span class="sb-stat">Elapsed <b id="elapsedStat">00:00:00</b></span>
+    <span class="sb-stat">Photos <b id="framesStat">0</b></span>
+    <span class="sb-stat">Video <b id="videoLenStat">0.0s</b></span>
+  </div>
+
+  <!-- Settings dialog -->
+  <div class="modal-backdrop" id="settingsModal" hidden>
+    <div class="modal">
+      <header class="modal-header">
+        <span>Settings</span>
+        <button id="settingsX" class="modal-close" title="Close">&#10005;</button>
+      </header>
+      <div class="modal-body">
+
+        <div class="field">
+          <label for="themeSelect">Theme</label>
+          <select id="themeSelect">
+            <option value="purple">LapsePurple (default)</option>
+            <option value="dark">Dark</option>
+            <option value="light">Light</option>
+          </select>
+        </div>
+
+        <div class="field lock-while-recording">
+          <span class="group-label">Video format</span>
+          <div class="radio-list">
+            <label class="radio-row"><input type="radio" name="format" value="mp4" checked />MP4 <i>(recommended)</i></label>
+            <label class="radio-row"><input type="radio" name="format" value="webm" />WebM</label>
+            <label class="radio-row"><input type="radio" name="format" value="mov" />MOV</label>
+            <label class="radio-row"><input type="radio" name="format" value="gif" />GIF</label>
+          </div>
+        </div>
+
+        <div class="field lock-while-recording">
+          <span class="group-label">Video quality</span>
+          <div class="radio-list">
+            <label class="radio-row"><input type="radio" name="res" value="1280" />720p</label>
+            <label class="radio-row"><input type="radio" name="res" value="1920" checked />1080p <i>(recommended)</i></label>
+            <label class="radio-row"><input type="radio" name="res" value="2560" />1440p</label>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="folderInput">Save videos to</label>
+          <div class="field-row">
+            <input type="text" id="folderInput" readonly class="lock-while-recording" />
+            <button id="browseFolder" class="btn slim lock-while-recording">Browse&hellip;</button>
+            <button id="openFolderSettings" class="btn slim">Open</button>
+          </div>
+        </div>
+
+        <label class="check-row lock-while-recording">
+          <input type="checkbox" id="keepFrames" />
+          Keep the individual photos after the video is made
+        </label>
+
+        <div class="advanced-divider">Timers</div>
+        <div class="field-pair lock-while-recording">
+          <div class="field">
+            <label for="stampSize">Video Timer Size:</label>
+            <select id="stampSize">
+              <option value="small">Small</option>
+              <option value="medium">Medium</option>
+              <option value="large">Large</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="stampPos">Video Timer Position:</label>
+            <select id="stampPos">
+              <option value="topleft">Top left</option>
+              <option value="topright">Top right</option>
+              <option value="bottomleft">Bottom left</option>
+              <option value="bottomright">Bottom right</option>
+            </select>
+          </div>
+        </div>
+        <label class="check-row lock-while-recording">
+          <input type="checkbox" id="floatingTimer" />
+          Show a floating timer on your screen while recording
+        </label>
+
+        <div class="advanced-divider">Custom speed</div>
+        <p class="advanced-note">Only used when Speed is set to Custom.</p>
+        <div class="field-pair lock-while-recording">
+          <div class="field">
+            <label for="intervalInput">Take a photo every (seconds)</label>
+            <input type="number" id="intervalInput" min="0.2" max="3600" step="0.1" value="5" />
+          </div>
+          <div class="field">
+            <label for="fpsInput">Video frames per second</label>
+            <input type="number" id="fpsInput" min="5" max="60" step="1" value="30" />
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>
