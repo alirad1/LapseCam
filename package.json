@@ -1,15 +1,56 @@
 {
   "name": "lapsecam",
   "productName": "LapseCam",
-  "version": "0.4.0",
+  "version": "1.0.0",
   "description": "Record sped up videos of your study sessions with no editing.",
   "author": "Ali Rad",
   "license": "MIT",
   "main": "src/main/main.js",
-  "scripts": { "start": "electron ." },
+  "scripts": {
+    "start": "electron .",
+    "icon": "node scripts/gen-icon.js",
+    "dist": "electron-builder --win portable nsis",
+    "pack": "electron-builder --dir"
+  },
   "dependencies": {
     "electron-store": "^8.2.0",
     "ffmpeg-static": "^5.2.0"
   },
-  "devDependencies": { "electron": "^31.7.7" }
+  "devDependencies": {
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.lapsecam.app",
+    "productName": "LapseCam",
+    "files": [
+      "src/**/*",
+      "!**/*.map"
+    ],
+    "asarUnpack": [
+      "**/node_modules/ffmpeg-static/**"
+    ],
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "win": {
+      "target": [
+        "portable",
+        "nsis"
+      ],
+      "icon": "build/icon.ico"
+    },
+    "portable": {
+      "artifactName": "LapseCam-${version}-portable.exe"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "artifactName": "LapseCam-${version}-setup.exe"
+    }
+  }
 }
