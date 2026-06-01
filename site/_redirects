@@ -1,0 +1,4 @@
+# Netlify redirect rules.
+# /download -> GitHub release installer (bump version on new releases)
+
+/download  https://github.com/alirad1/LapseCam/releases/download/v1.0.0/LapseCam-1.0.0-setup.exe  302
