@@ -58,6 +58,10 @@ scripts/        icon generator
 site/           landing page
 ```
 
+## Status
+
+Beta build — things might break.
+
 ## License
 
 MIT

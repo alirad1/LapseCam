@@ -16,9 +16,9 @@ let currentSessionDir = null;
 function createMainWindow() {
   mainWin = new BrowserWindow({
     width: 980,
-    height: 760,
+    height: 750,
     minWidth: 820,
-    minHeight: 640,
+    minHeight: 630,
     title: 'LapseCam',
     backgroundColor: '#12121a',
     autoHideMenuBar: true,

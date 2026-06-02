@@ -144,7 +144,7 @@ function drawTimeStamp(ctx, W, H) {
   const padX = f * 0.45, padY = f * 0.28;
   const bw = ctx.measureText(text).width + padX * 2;
   const bh = f + padY * 2;
-  const margin = Math.round(H * 0.02);
+  const margin = Math.round(H * 0.018);
   const pos = els.stampPos.value;
   const x = pos.includes('right') ? W - margin - bw : margin;
   const y = pos.includes('bottom') ? H - margin - bh : margin;
@@ -257,7 +257,7 @@ async function ensureStreams() {
 
 function cleanSourceName(name) {
   const n = name.replace(/\s+/g, ' ').trim();
-  return n.length > 42 ? n.slice(0, 40) + '…' : n;
+  return n.length > 48 ? n.slice(0, 46) + '…' : n;
 }
 
 async function populateSources() {
@@ -439,7 +439,7 @@ async function startRecording() {
   pausedAccumMs = 0;
   recState = 'recording';
 
-  const intervalMs = Math.max(200, activeTimings.interval * 1000);
+  const intervalMs = Math.max(100, activeTimings.interval * 1000);
   captureFrame();
   captureTimer = setInterval(captureFrame, intervalMs);
   startClock();
