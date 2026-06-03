@@ -439,7 +439,7 @@ async function startRecording() {
   pausedAccumMs = 0;
   recState = 'recording';
 
-  const intervalMs = Math.max(100, activeTimings.interval * 1000);
+  const intervalMs = Math.max(150, activeTimings.interval * 1000);
   captureFrame();
   captureTimer = setInterval(captureFrame, intervalMs);
   startClock();
