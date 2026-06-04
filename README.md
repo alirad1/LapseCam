@@ -60,7 +60,7 @@ site/           landing page
 
 ## Status
 
-Beta build — things might break.
+Beta build. Report issues on GitHub if something breaks.
 
 ## License
 
