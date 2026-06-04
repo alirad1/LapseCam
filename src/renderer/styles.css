@@ -269,7 +269,7 @@ select:focus, input:focus { border-color: var(--accent); }
 
 .btn {
   height: 26px;
-  padding: 0 12px;
+  padding: 0 14px;
   font-size: 12px;
   font-family: inherit;
   color: var(--text);
