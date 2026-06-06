@@ -345,7 +345,7 @@ select:focus, input:focus { border-color: var(--accent); }
 }
 .modal-backdrop[hidden] { display: none; }
 .modal {
-  width: 420px;
+  width: 440px;
   max-width: calc(100vw - 40px);
   background: var(--panel);
   border: 1px solid var(--border);
