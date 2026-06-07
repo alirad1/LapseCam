@@ -257,7 +257,7 @@ async function ensureStreams() {
 
 function cleanSourceName(name) {
   const n = name.replace(/\s+/g, ' ').trim();
-  return n.length > 48 ? n.slice(0, 46) + '…' : n;
+  return n.length > 42 ? n.slice(0, 40) + '…' : n;
 }
 
 async function populateSources() {
