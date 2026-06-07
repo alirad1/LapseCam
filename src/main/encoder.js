@@ -102,7 +102,7 @@ function encode(opts, onProgress) {
       }
     });
 
-    proc.on('error', (err) => reject(new Error(`Failed to launch ffmpeg: ${err.message}`)));
+    proc.on('error', (err) => reject(new Error(`Could not start ffmpeg: ${err.message}`)));
     proc.on('close', (code) => {
       if (code === 0 && fs.existsSync(outputPath)) {
         if (onProgress) onProgress(100);
