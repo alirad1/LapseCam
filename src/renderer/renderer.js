@@ -523,12 +523,12 @@ function updateControls() {
       els.stopBtn.disabled = true;
       break;
     case 'recording':
-      els.recordBtnLabel.textContent = 'Pause Recording';
+      els.recordBtnLabel.textContent = 'Pause';
       btn.disabled = false;
       els.stopBtn.disabled = false;
       break;
     case 'paused':
-      els.recordBtnLabel.textContent = 'Resume Recording';
+      els.recordBtnLabel.textContent = 'Resume';
       btn.disabled = false;
       els.stopBtn.disabled = false;
       break;
