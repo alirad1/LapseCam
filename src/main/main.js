@@ -16,7 +16,7 @@ let currentSessionDir = null;
 function createMainWindow() {
   mainWin = new BrowserWindow({
     width: 980,
-    height: 750,
+    height: 760,
     minWidth: 820,
     minHeight: 630,
     title: 'LapseCam',
