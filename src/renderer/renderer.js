@@ -144,7 +144,7 @@ function drawTimeStamp(ctx, W, H) {
   const padX = f * 0.45, padY = f * 0.28;
   const bw = ctx.measureText(text).width + padX * 2;
   const bh = f + padY * 2;
-  const margin = Math.round(H * 0.018);
+  const margin = Math.round(H * 0.02);
   const pos = els.stampPos.value;
   const x = pos.includes('right') ? W - margin - bw : margin;
   const y = pos.includes('bottom') ? H - margin - bh : margin;
