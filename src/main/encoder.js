@@ -68,7 +68,7 @@ function buildArgs({ sessionDir, outputFps, format, outputPath }) {
       return [
         ...input,
         '-filter_complex',
-        "[0:v]scale='min(640,iw)':-2:flags=lanczos,split[a][b];" +
+        "[0:v]scale='min(720,iw)':-2:flags=lanczos,split[a][b];" +
           '[a]palettegen=stats_mode=diff[p];' +
           '[b][p]paletteuse=dither=bayer:bayer_scale=4',
         outputPath
