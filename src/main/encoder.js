@@ -86,6 +86,7 @@ function encode(opts, onProgress) {
       return;
     }
     fs.mkdirSync(outputFolder, { recursive: true });
+    if (!fs.existsSync(outputFolder)) throw new Error('Could not create output folder.');
     const outputPath = uniqueOutputPath(outputFolder, format);
     const args = buildArgs({ sessionDir, outputFps, format, outputPath });
 
