@@ -94,7 +94,7 @@ function encode(opts, onProgress) {
 
     proc.stderr.on('data', (chunk) => {
       const text = chunk.toString();
-      stderrTail = (stderrTail + text).slice(-4000);
+      stderrTail = (stderrTail + text).slice(-6000);
       const m = /frame=\s*(\d+)/.exec(text);
       if (m && onProgress) {
         const pct = Math.min(99, Math.round((parseInt(m[1], 10) / frameCount) * 100));
