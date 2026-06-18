@@ -419,6 +419,7 @@ function startClock() {
 }
 
 function trimNum(n) {
+  if (!Number.isFinite(n)) return '0';
   return Number.isInteger(n) ? String(n) : n.toFixed(1);
 }
 
