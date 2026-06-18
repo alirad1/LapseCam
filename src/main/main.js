@@ -15,7 +15,7 @@ let currentSessionDir = null;
 
 function createMainWindow() {
   mainWin = new BrowserWindow({
-    width: 980,
+    width: 995,
     height: 760,
     minWidth: 820,
     minHeight: 630,
