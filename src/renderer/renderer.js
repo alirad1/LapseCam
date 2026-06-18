@@ -131,7 +131,7 @@ function drawWebcamOverlay(ctx, W, H) {
   ctx.beginPath();
   ctx.roundRect(x + 1, y + 1, w - 2, h - 2, r);
   ctx.lineWidth = 2;
-  ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+  ctx.strokeStyle = 'rgba(255,255,255,0.6)';
   ctx.stroke();
 }
 
