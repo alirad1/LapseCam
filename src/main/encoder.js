@@ -45,7 +45,7 @@ function buildArgs({ sessionDir, outputFps, format, outputPath }) {
       return [
         ...input,
         '-vf', evenScale,
-        '-c:v', 'libx264', '-preset', 'fast', '-crf', '22',
+        '-c:v', 'libx264', '-preset', 'medium', '-crf', '22',
         '-pix_fmt', 'yuv420p', '-movflags', '+faststart',
         '-an', outputPath
       ];
