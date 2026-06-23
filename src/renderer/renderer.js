@@ -247,7 +247,7 @@ async function ensureStreams() {
     }
 
     els.previewMsg.hidden = true;
-    setStatus('Ready.');
+    setStatus('Ready to record.');
   } catch (err) {
     els.previewMsg.textContent = `Could not start capture: ${err.message}`;
     setStatus(err.message, true);
