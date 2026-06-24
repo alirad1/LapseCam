@@ -484,7 +484,7 @@ async function stopRecording() {
   const frameCount = frameIndex;
   els.encodeArea.hidden = false;
   els.encodeFill.style.width = '0%';
-  els.encodeLabel.textContent = 'Creating video… 0%';
+  els.encodeLabel.textContent = 'Building video… 0%';
   setStatus('Creating your video…');
 
   try {
@@ -534,7 +534,7 @@ function updateControls() {
       els.stopBtn.disabled = false;
       break;
     case 'encoding':
-      els.recordBtnLabel.textContent = 'Creating video…';
+      els.recordBtnLabel.textContent = 'Building video…';
       btn.disabled = true;
       els.stopBtn.disabled = true;
       break;
