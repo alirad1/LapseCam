@@ -15,7 +15,7 @@ const defaults = {
   stampSize: 'small',
   stampPosition: 'topleft',
   speedPreset: '150',
-  intervalSeconds: 4,
+  intervalSeconds: 5,
   outputFps: 30,
   format: 'mp4',
   jpegQuality: 0.9,
