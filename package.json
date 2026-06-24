@@ -2,7 +2,7 @@
   "name": "lapsecam",
   "productName": "LapseCam",
   "version": "0.9.0-beta",
-  "description": "Record sped up videos of your study sessions with no editing.",
+  "description": "Record sped-up study session videos with no editing.",
   "author": "Ali Rad",
   "license": "MIT",
   "main": "src/main/main.js",
