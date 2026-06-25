@@ -17,7 +17,7 @@ function friendlyName(ext) {
   const ampm = h >= 12 ? 'PM' : 'AM';
   h = h % 12 || 12;
   const min = String(d.getMinutes()).padStart(2, '0');
-  return `Study Session ${months[d.getMonth()]} ${d.getDate()} ${d.getFullYear()} at ${h}.${min} ${ampm}.${ext}`;
+  return `Study session ${months[d.getMonth()]} ${d.getDate()} ${d.getFullYear()} at ${h}.${min} ${ampm}.${ext}`;
 }
 
 function uniqueOutputPath(folder, ext) {
