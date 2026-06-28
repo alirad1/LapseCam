@@ -18,7 +18,7 @@ function createMainWindow() {
     width: 995,
     height: 760,
     minWidth: 820,
-    minHeight: 630,
+    minHeight: 640,
     title: 'LapseCam',
     backgroundColor: '#12121a',
     autoHideMenuBar: true,
