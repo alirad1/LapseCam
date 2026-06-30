@@ -215,7 +215,7 @@ async function ensureStreams() {
   const needWebcam = mode !== 'screen';
 
   els.previewMsg.hidden = false;
-  els.previewMsg.textContent = 'Starting preview...';
+  els.previewMsg.textContent = 'Starting preview…';
 
   try {
     if (needScreen) {
