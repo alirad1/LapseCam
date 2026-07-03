@@ -131,7 +131,7 @@ function drawWebcamOverlay(ctx, W, H) {
   ctx.beginPath();
   ctx.roundRect(x + 1, y + 1, w - 2, h - 2, r);
   ctx.lineWidth = 2;
-  ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+  ctx.strokeStyle = 'rgba(255,255,255,0.55)';
   ctx.stroke();
 }
 
@@ -419,7 +419,6 @@ function startClock() {
 }
 
 function trimNum(n) {
-  if (!Number.isFinite(n)) return '0';
   return Number.isInteger(n) ? String(n) : n.toFixed(1);
 }
 
@@ -524,12 +523,12 @@ function updateControls() {
       els.stopBtn.disabled = true;
       break;
     case 'recording':
-      els.recordBtnLabel.textContent = 'Pause';
+      els.recordBtnLabel.textContent = 'Pause Recording';
       btn.disabled = false;
       els.stopBtn.disabled = false;
       break;
     case 'paused':
-      els.recordBtnLabel.textContent = 'Resume';
+      els.recordBtnLabel.textContent = 'Resume Recording';
       btn.disabled = false;
       els.stopBtn.disabled = false;
       break;

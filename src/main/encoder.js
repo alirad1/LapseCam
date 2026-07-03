@@ -86,7 +86,6 @@ function encode(opts, onProgress) {
       return;
     }
     fs.mkdirSync(outputFolder, { recursive: true });
-    if (!fs.existsSync(outputFolder)) throw new Error('Could not create output folder.');
     const outputPath = uniqueOutputPath(outputFolder, format);
     const args = buildArgs({ sessionDir, outputFps, format, outputPath });
 
@@ -95,7 +94,7 @@ function encode(opts, onProgress) {
 
     proc.stderr.on('data', (chunk) => {
       const text = chunk.toString();
-      stderrTail = (stderrTail + text).slice(-6000);
+      stderrTail = (stderrTail + text).slice(-4000);
       const m = /frame=\s*(\d+)/.exec(text);
       if (m && onProgress) {
         const pct = Math.min(99, Math.round((parseInt(m[1], 10) / frameCount) * 100));
@@ -103,7 +102,7 @@ function encode(opts, onProgress) {
       }
     });
 
-    proc.on('error', (err) => reject(new Error(`Could not start ffmpeg: ${err.message}`)));
+    proc.on('error', (err) => reject(new Error(`Failed to launch ffmpeg: ${err.message}`)));
     proc.on('close', (code) => {
       if (code === 0 && fs.existsSync(outputPath)) {
         if (onProgress) onProgress(100);
