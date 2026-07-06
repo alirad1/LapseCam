@@ -184,6 +184,12 @@
   </main>
 
   <footer class="footer">
+    <button type="button" class="back-to-top" aria-label="Back to top">
+      <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+        <path fill="currentColor" d="M8 3.5 3.5 8l1.1 1.1L7 6.7V12h2V6.7l2.4 2.4L12.5 8 8 3.5Z"/>
+      </svg>
+      Back to top
+    </button>
     <p>Made by <a href="https://alirad.dev">Ali Rad</a></p>
     <div class="footer-links">
       <a href="https://github.com/alirad1/LapseCam" target="_blank" rel="noopener">GitHub</a>
@@ -211,6 +217,33 @@
 
     const mqDesktop = matchMedia('(min-width: 861px)');
     const mqReduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
+
+    let scrollAnimId = 0;
+
+    function scrollToTop() {
+      if (mqReduceMotion.matches) {
+        scrollTo(0, 0);
+        return;
+      }
+
+      cancelAnimationFrame(scrollAnimId);
+      const startY = scrollY;
+      if (startY <= 0) return;
+
+      const duration = 550;
+      const startTime = performance.now();
+
+      function step(now) {
+        const t = clamp((now - startTime) / duration, 0, 1);
+        scrollTo(0, startY * (1 - easeOut(t)));
+        if (t < 1) scrollAnimId = requestAnimationFrame(step);
+      }
+
+      scrollAnimId = requestAnimationFrame(step);
+    }
+
+    document.querySelector('.back-to-top')?.addEventListener('click', scrollToTop);
+
     const heroInner = document.querySelector('.hero-inner');
     const demoStage = document.getElementById('demo');
     const stickyPanel = demoStage?.querySelector('.sticky-panel');

@@ -660,6 +660,35 @@ h1, h2, h3, .btn, .brand, .nav-links a, #faq summary {
 .footer a { color: var(--muted); transition: color 0.2s; }
 .footer a:hover { color: var(--text); }
 
+.back-to-top {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 28px;
+  padding: 8px 16px;
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--btn-bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color 0.2s, background 0.2s, border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+
+.back-to-top:hover {
+  color: var(--text);
+  background: var(--btn-hover);
+  border-color: #3a3a52;
+  transform: translateY(-2px);
+}
+
+.back-to-top svg {
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
 .footer-links {
   display: flex;
   justify-content: center;
@@ -711,7 +740,8 @@ h1, h2, h3, .btn, .brand, .nav-links a, #faq summary {
     transform: none;
   }
 
-  .btn:hover {
+  .btn:hover,
+  .back-to-top:hover {
     transform: none;
   }
 
