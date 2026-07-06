@@ -23,10 +23,13 @@ so long sessions stay lightweight.
 Features:
 
 - Screen only, webcam only, or screen with a draggable webcam overlay
+- Draggable blur regions to hide sensitive on-screen content
 - Speed presets from 30x to 600x, or custom interval + fps
 - Elapsed time stamped into the video, optional floating timer (excluded from capture)
 - Pause/resume without splitting the session
+- Auto-stop after a set number of hours
 - Exports MP4, WebM, MOV, or GIF
+- Check for updates on launch
 - Everything stays local
 
 ## Run from source
@@ -54,7 +57,7 @@ the icon pixel by pixel so I didn't have to mess with an image editor.
 ```
 src/main/       electron main process, IPC, ffmpeg
 src/renderer/   UI and capture loop
-scripts/        icon generator
+scripts/        gen-icon.js + set-exe-icon.js (post-build branding)
 site/           landing page
 ```
 

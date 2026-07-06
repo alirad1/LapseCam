@@ -21,8 +21,12 @@ const defaults = {
   jpegQuality: 0.9,
   maxDimension: 1920,
   overlay: { x: 0.73, y: 0.7, w: 0.24, h: 0.27 },
+  blurRegions: [],
   outputFolder: defaultOutputFolder,
-  keepFrames: false
+  keepFrames: false,
+  autoStopHours: 0,
+  checkForUpdates: true,
+  dismissedVersion: ''
 };
 
 const store = new Store({

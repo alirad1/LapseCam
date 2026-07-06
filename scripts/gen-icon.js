@@ -94,38 +94,82 @@ function chunk(type, data) {
   return Buffer.concat([len, body, crc]);
 }
 
-const raw = Buffer.alloc(S * (S * 4 + 1));
-for (let y = 0; y < S; y++) {
-  raw[y * (S * 4 + 1)] = 0;
-  Buffer.from(px.buffer, y * S * 4, S * 4).copy(raw, y * (S * 4 + 1) + 1);
+function downscale(src, srcSize, dstSize) {
+  const out = new Uint8Array(dstSize * dstSize * 4);
+  for (let y = 0; y < dstSize; y++) {
+    for (let x = 0; x < dstSize; x++) {
+      const sx = Math.min(srcSize - 1, Math.floor((x + 0.5) * srcSize / dstSize));
+      const sy = Math.min(srcSize - 1, Math.floor((y + 0.5) * srcSize / dstSize));
+      const si = (sy * srcSize + sx) * 4;
+      const di = (y * dstSize + x) * 4;
+      out[di] = src[si];
+      out[di + 1] = src[si + 1];
+      out[di + 2] = src[si + 2];
+      out[di + 3] = src[si + 3];
+    }
+  }
+  return out;
 }
 
-const ihdr = Buffer.alloc(13);
-ihdr.writeUInt32BE(S, 0);
-ihdr.writeUInt32BE(S, 4);
-ihdr[8] = 8;
-ihdr[9] = 6;
-const png = Buffer.concat([
-  Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
-  chunk('IHDR', ihdr),
-  chunk('IDAT', zlib.deflateSync(raw, { level: 9 })),
-  chunk('IEND', Buffer.alloc(0))
-]);
+function pngFromPixels(pixels, size) {
+  const raw = Buffer.alloc(size * (size * 4 + 1));
+  for (let y = 0; y < size; y++) {
+    raw[y * (size * 4 + 1)] = 0;
+    Buffer.from(pixels.buffer, pixels.byteOffset + y * size * 4, size * 4)
+      .copy(raw, y * (size * 4 + 1) + 1);
+  }
 
-const header = Buffer.alloc(6);
-header.writeUInt16LE(0, 0);
-header.writeUInt16LE(1, 2);
-header.writeUInt16LE(1, 4);
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(size, 0);
+  ihdr.writeUInt32BE(size, 4);
+  ihdr[8] = 8;
+  ihdr[9] = 6;
 
-const entry = Buffer.alloc(16);
-entry[0] = 0;
-entry[1] = 0;
-entry[4] = 1;
-entry[6] = 32;
-entry.writeUInt32LE(png.length, 8);
-entry.writeUInt32LE(22, 12);
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk('IHDR', ihdr),
+    chunk('IDAT', zlib.deflateSync(raw, { level: 9 })),
+    chunk('IEND', Buffer.alloc(0))
+  ]);
+}
 
+function buildIco(sizes) {
+  const pngs = sizes.map((size) => {
+    const pixels = size === S ? px : downscale(px, S, size);
+    return pngFromPixels(pixels, size);
+  });
+
+  const header = Buffer.alloc(6);
+  header.writeUInt16LE(0, 0);
+  header.writeUInt16LE(1, 2);
+  header.writeUInt16LE(sizes.length, 4);
+
+  let offset = 6 + sizes.length * 16;
+  const entries = [];
+  const images = [];
+
+  for (let i = 0; i < sizes.length; i++) {
+    const size = sizes[i];
+    const png = pngs[i];
+    const entry = Buffer.alloc(16);
+    entry[0] = size >= 256 ? 0 : size;
+    entry[1] = size >= 256 ? 0 : size;
+    entry.writeUInt16LE(1, 4);
+    entry.writeUInt16LE(32, 6);
+    entry.writeUInt32LE(png.length, 8);
+    entry.writeUInt32LE(offset, 12);
+    entries.push(entry);
+    images.push(png);
+    offset += png.length;
+  }
+
+  return Buffer.concat([header, ...entries, ...images]);
+}
+
+const sizes = [16, 32, 48, 256];
+const ico = buildIco(sizes);
 const outDir = path.join(__dirname, '..', 'build');
 fs.mkdirSync(outDir, { recursive: true });
-fs.writeFileSync(path.join(outDir, 'icon.ico'), Buffer.concat([header, entry, png]));
-console.log(`Wrote ${path.join(outDir, 'icon.ico')} (${png.length + 22} bytes)`);
+const outPath = path.join(outDir, 'icon.ico');
+fs.writeFileSync(outPath, ico);
+console.log(`Wrote ${outPath} (${ico.length} bytes, ${sizes.length} sizes)`);

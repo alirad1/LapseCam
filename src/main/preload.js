@@ -24,5 +24,11 @@ contextBridge.exposeInMainWorld('lapse', {
 
   chooseFolder: () => ipcRenderer.invoke('dialog:chooseFolder'),
   showItemInFolder: (p) => ipcRenderer.invoke('shell:showItem', p),
-  openPath: (p) => ipcRenderer.invoke('shell:openPath', p)
+  openPath: (p) => ipcRenderer.invoke('shell:openPath', p),
+  openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
+
+  onUpdateAvailable: (cb) => {
+    ipcRenderer.removeAllListeners('update:available');
+    ipcRenderer.on('update:available', (_e, info) => cb(info));
+  }
 });

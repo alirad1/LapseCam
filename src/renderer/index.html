@@ -14,7 +14,8 @@
     <div class="preview-stage">
       <canvas id="previewCanvas" width="1280" height="720"></canvas>
       <div id="previewHint" class="preview-hint" hidden>
-        Drag the camera box to move it. Drag the corner handle to resize.
+        <span id="previewHintText"></span>
+        <button id="previewHintClose" class="preview-hint-close" type="button" title="Dismiss" hidden>&#10005;</button>
       </div>
       <div id="previewMsg" class="preview-msg">Starting preview&hellip;</div>
     </div>
@@ -85,6 +86,21 @@
       </div>
     </section>
 
+    <section class="dock blur-dock" id="blurDock">
+      <header>Blur</header>
+      <div class="dock-body controls">
+        <button id="blurDrawBtn" class="btn">Draw blur area</button>
+        <button id="blurFullScreenBtn" class="btn">Blur entire screen</button>
+        <button id="blurRemoveSelectedBtn" class="btn" disabled>Remove</button>
+      </div>
+    </section>
+
+  </div>
+
+  <div class="update-banner" id="updateBanner" hidden>
+    <span id="updateBannerText"></span>
+    <button id="updateDownload" class="btn slim">Download</button>
+    <button id="updateDismiss" class="btn slim">Dismiss</button>
   </div>
 
   <!-- Status bar -->
@@ -172,6 +188,16 @@
         <label class="check-row lock-while-recording">
           <input type="checkbox" id="floatingTimer" />
           Show a floating timer on your screen while recording
+        </label>
+        <div class="field lock-while-recording">
+          <label for="autoStopHours">Stop recording after (hours, 0 = off)</label>
+          <input type="number" id="autoStopHours" min="0" max="24" step="0.5" value="0" />
+        </div>
+
+        <div class="advanced-divider">App</div>
+        <label class="check-row">
+          <input type="checkbox" id="checkForUpdates" checked />
+          Check for updates on launch
         </label>
 
         <div class="advanced-divider">Custom speed</div>

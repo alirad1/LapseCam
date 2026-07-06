@@ -8,18 +8,31 @@ const fs = require('fs');
 
 const { getSettings, saveSettings } = require('./store');
 const { encode } = require('./encoder');
+const { checkForUpdates } = require('./updater');
+
+app.setName('LapseCam');
+if (process.platform === 'win32') {
+  app.setAppUserModelId('com.lapsecam.app');
+}
 
 let mainWin = null;
 let overlayWin = null;
 let currentSessionDir = null;
 
+function getAppIcon() {
+  const packaged = path.join(process.resourcesPath, 'icon.ico');
+  if (app.isPackaged && fs.existsSync(packaged)) return packaged;
+  return path.join(__dirname, '..', '..', 'build', 'icon.ico');
+}
+
 function createMainWindow() {
   mainWin = new BrowserWindow({
     width: 980,
     height: 760,
-    minWidth: 820,
+    minWidth: 920,
     minHeight: 640,
     title: 'LapseCam',
+    icon: getAppIcon(),
     backgroundColor: '#12121a',
     autoHideMenuBar: true,
     webPreferences: {
@@ -30,6 +43,7 @@ function createMainWindow() {
     }
   });
   mainWin.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
+  mainWin.webContents.on('did-finish-load', () => runUpdateCheck());
   mainWin.on('closed', () => {
     mainWin = null;
     closeOverlay();
@@ -138,6 +152,18 @@ function registerIpc() {
 
   ipcMain.handle('shell:showItem', (_e, p) => shell.showItemInFolder(p));
   ipcMain.handle('shell:openPath', (_e, p) => shell.openPath(p));
+  ipcMain.handle('shell:openExternal', (_e, url) => shell.openExternal(url));
+}
+
+function runUpdateCheck() {
+  const { checkForUpdates: enabled, dismissedVersion } = getSettings();
+  if (!enabled) return;
+  setTimeout(async () => {
+    const info = await checkForUpdates(dismissedVersion);
+    if (info && mainWin && !mainWin.isDestroyed()) {
+      mainWin.webContents.send('update:available', info);
+    }
+  }, 2000);
 }
 
 app.whenReady().then(() => {

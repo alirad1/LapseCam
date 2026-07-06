@@ -1,7 +1,7 @@
 {
   "name": "lapsecam",
   "productName": "LapseCam",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Record sped up videos of your study sessions with no editing.",
   "author": "Ali Rad",
   "license": "MIT",
@@ -9,8 +9,8 @@
   "scripts": {
     "start": "electron .",
     "icon": "node scripts/gen-icon.js",
-    "dist": "electron-builder --win portable nsis",
-    "pack": "electron-builder --dir"
+    "dist": "npm run icon && electron-builder --win portable nsis && node scripts/set-exe-icon.js",
+    "pack": "npm run icon && electron-builder --dir && node scripts/set-exe-icon.js"
   },
   "dependencies": {
     "electron-store": "^8.2.0",
@@ -18,7 +18,8 @@
   },
   "devDependencies": {
     "electron": "^31.7.7",
-    "electron-builder": "^24.13.3"
+    "electron-builder": "^24.13.3",
+    "rcedit": "^5.0.2"
   },
   "build": {
     "appId": "com.lapsecam.app",
@@ -30,6 +31,12 @@
     "asarUnpack": [
       "**/node_modules/ffmpeg-static/**"
     ],
+    "extraResources": [
+      {
+        "from": "build/icon.ico",
+        "to": "icon.ico"
+      }
+    ],
     "directories": {
       "output": "dist",
       "buildResources": "build"
@@ -39,7 +46,9 @@
         "portable",
         "nsis"
       ],
-      "icon": "build/icon.ico"
+      "executableName": "LapseCam",
+      "icon": "build/icon.ico",
+      "signAndEditExecutable": true
     },
     "portable": {
       "artifactName": "LapseCam-${version}-portable.exe"

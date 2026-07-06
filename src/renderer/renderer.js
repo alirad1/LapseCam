@@ -12,6 +12,8 @@ const els = {
   previewCanvas: $('previewCanvas'),
   previewMsg: $('previewMsg'),
   previewHint: $('previewHint'),
+  previewHintText: $('previewHintText'),
+  previewHintClose: $('previewHintClose'),
   speedSelect: $('speedSelect'),
   speedSummary: $('speedSummary'),
   recordBtn: $('recordBtn'),
@@ -40,7 +42,17 @@ const els = {
   keepFrames: $('keepFrames'),
   floatingTimer: $('floatingTimer'),
   stampSize: $('stampSize'),
-  stampPos: $('stampPos')
+  stampPos: $('stampPos'),
+  autoStopHours: $('autoStopHours'),
+  checkForUpdates: $('checkForUpdates'),
+  blurDock: $('blurDock'),
+  blurDrawBtn: $('blurDrawBtn'),
+  blurFullScreenBtn: $('blurFullScreenBtn'),
+  blurRemoveSelectedBtn: $('blurRemoveSelectedBtn'),
+  updateBanner: $('updateBanner'),
+  updateBannerText: $('updateBannerText'),
+  updateDownload: $('updateDownload'),
+  updateDismiss: $('updateDismiss')
 };
 
 const getRadio = (name) => document.querySelector(`input[name="${name}"]:checked`).value;
@@ -66,6 +78,18 @@ let recordStartMs = 0;
 let pausedAccumMs = 0;
 let pauseStartMs = 0;
 let activeTimings = null;
+let autoStopTimer = null;
+let blurModeActive = false;
+let selectedBlurIndex = -1;
+let pendingUpdate = null;
+let cameraHintTimer = null;
+let cameraHintDismissedSession = false;
+const CAMERA_HINT_MS = 10000;
+
+const MIN_BLUR = 0.05;
+const BLUR_PX = 24;
+const blurScratch = document.createElement('canvas');
+const blurCtx = blurScratch.getContext('2d');
 
 const captureCanvas = document.createElement('canvas');
 const captureCtx = captureCanvas.getContext('2d');
@@ -135,6 +159,27 @@ function drawWebcamOverlay(ctx, W, H) {
   ctx.stroke();
 }
 
+function applyBlurRegions(ctx, W, H) {
+  const regions = settings.blurRegions;
+  if (!regions.length) return;
+  for (const r of regions) {
+    const x = Math.round(r.x * W);
+    const y = Math.round(r.y * H);
+    const w = Math.max(1, Math.round(r.w * W));
+    const h = Math.max(1, Math.round(r.h * H));
+    if (blurScratch.width !== w || blurScratch.height !== h) {
+      blurScratch.width = w;
+      blurScratch.height = h;
+    }
+    blurCtx.filter = 'none';
+    blurCtx.drawImage(ctx.canvas, x, y, w, h, 0, 0, w, h);
+    ctx.save();
+    ctx.filter = `blur(${BLUR_PX}px)`;
+    ctx.drawImage(blurScratch, 0, 0, w, h, x, y, w, h);
+    ctx.restore();
+  }
+}
+
 function drawTimeStamp(ctx, W, H) {
   const sizes = { small: 0.032, medium: 0.05, large: 0.075 };
   const f = Math.max(12, Math.round(H * (sizes[els.stampSize.value] || 0.032)));
@@ -166,11 +211,14 @@ function composeFrame(ctx, W, H) {
     drawCover(ctx, webcamVideo, 0, 0, W, H);
   } else {
     if (screenVideo.videoWidth) ctx.drawImage(screenVideo, 0, 0, W, H);
+    if (settings.blurRegions.length) applyBlurRegions(ctx, W, H);
     if (mode === 'screen-overlay' && webcamVideo.videoWidth) {
       drawWebcamOverlay(ctx, W, H);
     }
   }
-  drawTimeStamp(ctx, W, H);
+  if (recState === 'recording' || recState === 'paused') {
+    drawTimeStamp(ctx, W, H);
+  }
 }
 
 function computeCanvasSize() {
@@ -304,6 +352,146 @@ async function populateWebcams() {
 
 let dragState = null;
 
+function isFullScreenRegion(r) {
+  return r.x === 0 && r.y === 0 && r.w === 1 && r.h === 1;
+}
+
+function hitTestBlurRegions(p) {
+  const regions = settings.blurRegions;
+  for (let i = regions.length - 1; i >= 0; i--) {
+    const r = regions[i];
+    if (isFullScreenRegion(r)) continue;
+    const nearCorner =
+      Math.abs(p.x - (r.x + r.w)) < 0.03 && Math.abs(p.y - (r.y + r.h)) < 0.045;
+    const inside = p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h;
+    if (nearCorner) return { index: i, type: 'resize' };
+    if (inside) return { index: i, type: 'move' };
+  }
+  return null;
+}
+
+function hitTestWebcam(p) {
+  if (settings.mode !== 'screen-overlay') return null;
+  const o = settings.overlay;
+  const nearCorner =
+    Math.abs(p.x - (o.x + o.w)) < 0.03 && Math.abs(p.y - (o.y + o.h)) < 0.045;
+  const inside = p.x >= o.x && p.x <= o.x + o.w && p.y >= o.y && p.y <= o.y + o.h;
+  if (nearCorner) return { type: 'resize' };
+  if (inside) return { type: 'move' };
+  return null;
+}
+
+function drawBlurPreviewOverlays(ctx, W, H) {
+  settings.blurRegions.forEach((r, i) => {
+    if (isFullScreenRegion(r)) return;
+    const x = r.x * W, y = r.y * H, w = r.w * W, h = r.h * H;
+    const selected = i === selectedBlurIndex;
+    ctx.save();
+    ctx.setLineDash([6, 4]);
+    ctx.strokeStyle = selected ? 'rgba(255, 180, 50, 0.95)' : 'rgba(255, 180, 50, 0.7)';
+    ctx.lineWidth = selected ? 2.5 : 1.5;
+    ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+    ctx.setLineDash([]);
+    if (selected) {
+      ctx.beginPath();
+      ctx.arc(x + w - 4, y + h - 4, 7, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255, 180, 50, 0.95)';
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+    ctx.restore();
+  });
+}
+
+function isFullScreenBlur() {
+  const r = settings.blurRegions;
+  return r.length === 1 && isFullScreenRegion(r[0]);
+}
+
+function clearCameraHintTimer() {
+  if (cameraHintTimer) {
+    clearTimeout(cameraHintTimer);
+    cameraHintTimer = null;
+  }
+}
+
+function dismissCameraHint() {
+  cameraHintDismissedSession = true;
+  clearCameraHintTimer();
+  els.previewHint.hidden = true;
+  els.previewHintClose.hidden = true;
+}
+
+function showCameraHintTimed() {
+  if (cameraHintDismissedSession) return;
+  clearCameraHintTimer();
+  els.previewHintText.textContent =
+    'Drag the camera box to move it. Drag the corner handle to resize.';
+  els.previewHintClose.hidden = false;
+  els.previewHint.hidden = false;
+  cameraHintTimer = setTimeout(dismissCameraHint, CAMERA_HINT_MS);
+}
+
+function updateBlurUI() {
+  const show = settings.mode !== 'webcam';
+  const fullScreen = isFullScreenBlur();
+  if (fullScreen) blurModeActive = false;
+
+  els.blurDock.hidden = !show;
+  els.blurDrawBtn.disabled = fullScreen;
+  els.blurDrawBtn.classList.toggle('outline-active', blurModeActive);
+  els.blurFullScreenBtn.classList.toggle('outline-active', fullScreen);
+  const hasSelection = selectedBlurIndex >= 0;
+  els.blurRemoveSelectedBtn.disabled = !hasSelection;
+  els.blurRemoveSelectedBtn.classList.toggle('primary', hasSelection);
+  updatePreviewHint();
+}
+
+function updatePreviewHint() {
+  if (recState === 'recording' || recState === 'paused' || recState === 'encoding') {
+    clearCameraHintTimer();
+    els.previewHint.hidden = true;
+    return;
+  }
+  if (blurModeActive && settings.mode !== 'webcam') {
+    clearCameraHintTimer();
+    els.previewHintText.textContent = 'Click and drag on the preview to draw a blur area.';
+    els.previewHintClose.hidden = true;
+    els.previewHint.hidden = false;
+    return;
+  }
+  if (settings.mode === 'screen-overlay' && !cameraHintDismissedSession) {
+    showCameraHintTimed();
+    return;
+  }
+  clearCameraHintTimer();
+  els.previewHint.hidden = true;
+  els.previewHintClose.hidden = true;
+}
+
+function deleteSelectedBlur() {
+  if (selectedBlurIndex < 0) return;
+  settings.blurRegions.splice(selectedBlurIndex, 1);
+  selectedBlurIndex = -1;
+  updateBlurUI();
+  saveSettingsDebounced();
+}
+
+function blurEntireScreen() {
+  if (isFullScreenBlur()) {
+    settings.blurRegions = [];
+    selectedBlurIndex = -1;
+  } else {
+    settings.blurRegions = [{ x: 0, y: 0, w: 1, h: 1 }];
+    selectedBlurIndex = 0;
+  }
+  blurModeActive = false;
+  updateBlurUI();
+  saveSettingsDebounced();
+}
+
 function previewLoop() {
   const mode = settings.mode;
   const src = mode === 'webcam' ? webcamVideo : screenVideo;
@@ -316,8 +504,23 @@ function previewLoop() {
     }
     composeFrame(previewCtx, els.previewCanvas.width, els.previewCanvas.height);
 
+    const W = els.previewCanvas.width, H = els.previewCanvas.height;
+    if (mode !== 'webcam') drawBlurPreviewOverlays(previewCtx, W, H);
+
+    if (dragState && dragState.kind === 'blur-create') {
+      const x1 = Math.min(dragState.startX, dragState.curX) * W;
+      const y1 = Math.min(dragState.startY, dragState.curY) * H;
+      const rw = Math.abs(dragState.curX - dragState.startX) * W;
+      const rh = Math.abs(dragState.curY - dragState.startY) * H;
+      previewCtx.save();
+      previewCtx.setLineDash([6, 4]);
+      previewCtx.strokeStyle = 'rgba(255, 180, 50, 0.9)';
+      previewCtx.lineWidth = 2;
+      previewCtx.strokeRect(x1 + 0.5, y1 + 0.5, rw - 1, rh - 1);
+      previewCtx.restore();
+    }
+
     if (mode === 'screen-overlay') {
-      const W = els.previewCanvas.width, H = els.previewCanvas.height;
       const o = settings.overlay;
       const hx = (o.x + o.w) * W, hy = (o.y + o.h) * H;
       previewCtx.beginPath();
@@ -341,57 +544,144 @@ function canvasPos(evt) {
 }
 
 els.previewCanvas.addEventListener('pointerdown', (evt) => {
-  if (settings.mode !== 'screen-overlay') return;
+  const mode = settings.mode;
   const p = canvasPos(evt);
-  const o = settings.overlay;
-  const nearCorner =
-    Math.abs(p.x - (o.x + o.w)) < 0.03 && Math.abs(p.y - (o.y + o.h)) < 0.045;
-  const inside = p.x >= o.x && p.x <= o.x + o.w && p.y >= o.y && p.y <= o.y + o.h;
-  if (!nearCorner && !inside) return;
-  dragState = {
-    type: nearCorner ? 'resize' : 'move',
-    startX: p.x, startY: p.y,
-    orig: { ...o }
-  };
-  els.previewCanvas.setPointerCapture(evt.pointerId);
+
+  const webcamHit = hitTestWebcam(p);
+  if (webcamHit) {
+    dragState = {
+      kind: 'webcam',
+      type: webcamHit.type,
+      startX: p.x, startY: p.y,
+      orig: { ...settings.overlay }
+    };
+    els.previewCanvas.setPointerCapture(evt.pointerId);
+    return;
+  }
+
+  if (mode !== 'webcam') {
+    const blurHit = hitTestBlurRegions(p);
+    if (blurHit) {
+      selectedBlurIndex = blurHit.index;
+      updateBlurUI();
+      const r = settings.blurRegions[blurHit.index];
+      dragState = {
+        kind: 'blur',
+        type: blurHit.type,
+        index: blurHit.index,
+        startX: p.x, startY: p.y,
+        orig: { ...r }
+      };
+      els.previewCanvas.setPointerCapture(evt.pointerId);
+      return;
+    }
+    if (blurModeActive) {
+      selectedBlurIndex = -1;
+      updateBlurUI();
+      dragState = { kind: 'blur-create', startX: p.x, startY: p.y, curX: p.x, curY: p.y };
+      els.previewCanvas.setPointerCapture(evt.pointerId);
+      return;
+    }
+    selectedBlurIndex = -1;
+    updateBlurUI();
+  }
 });
 
 els.previewCanvas.addEventListener('pointermove', (evt) => {
-  if (settings.mode !== 'screen-overlay') { els.previewCanvas.style.cursor = 'default'; return; }
+  const mode = settings.mode;
   const p = canvasPos(evt);
-  const o = settings.overlay;
 
   if (!dragState) {
-    const nearCorner =
-      Math.abs(p.x - (o.x + o.w)) < 0.03 && Math.abs(p.y - (o.y + o.h)) < 0.045;
-    const inside = p.x >= o.x && p.x <= o.x + o.w && p.y >= o.y && p.y <= o.y + o.h;
-    els.previewCanvas.style.cursor = nearCorner ? 'nwse-resize' : inside ? 'grab' : 'default';
+    let cursor = 'default';
+    const webcamHit = hitTestWebcam(p);
+    if (webcamHit) {
+      cursor = webcamHit.type === 'resize' ? 'nwse-resize' : 'grab';
+    } else if (mode !== 'webcam') {
+      const blurHit = hitTestBlurRegions(p);
+      if (blurHit) {
+        cursor = blurHit.type === 'resize' ? 'nwse-resize' : 'grab';
+      } else if (blurModeActive) {
+        cursor = 'crosshair';
+      }
+    }
+    els.previewCanvas.style.cursor = cursor;
     return;
   }
 
   const dx = p.x - dragState.startX;
   const dy = p.y - dragState.startY;
-  const orig = dragState.orig;
 
-  if (dragState.type === 'move') {
-    o.x = Math.min(Math.max(orig.x + dx, 0), 1 - o.w);
-    o.y = Math.min(Math.max(orig.y + dy, 0), 1 - o.h);
-  } else {
-    const canvasAR = els.previewCanvas.width / els.previewCanvas.height;
-    const camAR = webcamVideo.videoWidth
-      ? webcamVideo.videoWidth / webcamVideo.videoHeight
-      : 16 / 9;
-    o.w = Math.min(Math.max(orig.w + dx, 0.08), 1 - o.x);
-    o.h = Math.min(o.w * (canvasAR / camAR), 1 - o.y);
-    o.w = o.h * (camAR / canvasAR);
+  if (dragState.kind === 'blur-create') {
+    dragState.curX = p.x;
+    dragState.curY = p.y;
+    const x1 = Math.min(dragState.startX, p.x);
+    const y1 = Math.min(dragState.startY, p.y);
+    const w = Math.abs(p.x - dragState.startX);
+    const h = Math.abs(p.y - dragState.startY);
+    if (w >= MIN_BLUR && h >= MIN_BLUR) {
+      const temp = { x: x1, y: y1, w, h };
+      if (!dragState.preview) {
+        dragState.preview = true;
+        settings.blurRegions.push(temp);
+        selectedBlurIndex = settings.blurRegions.length - 1;
+      } else {
+        Object.assign(settings.blurRegions[selectedBlurIndex], temp);
+      }
+      updateBlurUI();
+    }
+    return;
+  }
+
+  if (dragState.kind === 'blur') {
+    const r = settings.blurRegions[dragState.index];
+    const orig = dragState.orig;
+    if (dragState.type === 'move') {
+      r.x = Math.min(Math.max(orig.x + dx, 0), 1 - r.w);
+      r.y = Math.min(Math.max(orig.y + dy, 0), 1 - r.h);
+    } else {
+      r.w = Math.min(Math.max(orig.w + dx, MIN_BLUR), 1 - r.x);
+      r.h = Math.min(Math.max(orig.h + dy, MIN_BLUR), 1 - r.y);
+    }
+    return;
+  }
+
+  if (dragState.kind === 'webcam') {
+    const o = settings.overlay;
+    const orig = dragState.orig;
+    if (dragState.type === 'move') {
+      o.x = Math.min(Math.max(orig.x + dx, 0), 1 - o.w);
+      o.y = Math.min(Math.max(orig.y + dy, 0), 1 - o.h);
+    } else {
+      const canvasAR = els.previewCanvas.width / els.previewCanvas.height;
+      const camAR = webcamVideo.videoWidth
+        ? webcamVideo.videoWidth / webcamVideo.videoHeight
+        : 16 / 9;
+      o.w = Math.min(Math.max(orig.w + dx, 0.08), 1 - o.x);
+      o.h = Math.min(o.w * (canvasAR / camAR), 1 - o.y);
+      o.w = o.h * (camAR / canvasAR);
+    }
   }
 });
 
 els.previewCanvas.addEventListener('pointerup', () => {
-  if (dragState) {
-    dragState = null;
-    saveSettingsDebounced();
+  if (!dragState) return;
+  if (dragState.kind === 'blur-create') {
+    if (!dragState.preview) {
+      selectedBlurIndex = -1;
+    } else {
+      const r = settings.blurRegions[selectedBlurIndex];
+      if (r.w < MIN_BLUR || r.h < MIN_BLUR) {
+        settings.blurRegions.splice(selectedBlurIndex, 1);
+        selectedBlurIndex = -1;
+      } else {
+        blurModeActive = false;
+        dismissCameraHint();
+      }
+    }
+    updateBlurUI();
   }
+  dragState = null;
+  saveSettingsDebounced();
 });
 
 async function captureFrame() {
@@ -415,7 +705,40 @@ function startClock() {
     const ms = elapsedMs();
     els.elapsedStat.textContent = fmtHMS(ms);
     window.lapse.updateOverlay({ elapsed: fmtHMS(ms), state: recState });
+    if (recState === 'recording' && autoStopLimitMs() > 0) setRecordingStatus();
   }, 500);
+}
+
+function autoStopLimitMs() {
+  const h = Number(els.autoStopHours.value) || 0;
+  return h > 0 ? h * 3600 * 1000 : 0;
+}
+
+function clearAutoStop() {
+  if (autoStopTimer) {
+    clearTimeout(autoStopTimer);
+    autoStopTimer = null;
+  }
+}
+
+function scheduleAutoStop() {
+  clearAutoStop();
+  const limit = autoStopLimitMs();
+  if (!limit || recState !== 'recording') return;
+  const remaining = limit - elapsedMs();
+  if (remaining <= 0) {
+    onAutoStopFired();
+    return;
+  }
+  autoStopTimer = setTimeout(onAutoStopFired, remaining);
+}
+
+async function onAutoStopFired() {
+  autoStopTimer = null;
+  if (recState === 'recording' || recState === 'paused') {
+    setStatus('Auto-stop limit reached — saving video…');
+    await stopRecording();
+  }
 }
 
 function trimNum(n) {
@@ -443,6 +766,7 @@ async function startRecording() {
   captureFrame();
   captureTimer = setInterval(captureFrame, intervalMs);
   startClock();
+  scheduleAutoStop();
 
   if (els.floatingTimer.checked) window.lapse.showOverlay();
   els.resultWrap.hidden = true;
@@ -451,12 +775,19 @@ async function startRecording() {
 }
 
 function setRecordingStatus() {
-  setStatus(`Recording (1 photo every ${trimNum(activeTimings.interval)} seconds)`, false, true);
+  let msg = `Recording (1 photo every ${trimNum(activeTimings.interval)} seconds)`;
+  const limit = autoStopLimitMs();
+  if (limit > 0) {
+    const rem = limit - elapsedMs();
+    if (rem > 0) msg += ` · Auto-stopping in ${fmtHMS(rem)}`;
+  }
+  setStatus(msg, false, true);
 }
 
 function pauseRecording() {
   recState = 'paused';
   clearInterval(captureTimer); captureTimer = null;
+  clearAutoStop();
   pauseStartMs = Date.now();
   window.lapse.updateOverlay({ elapsed: fmtHMS(elapsedMs()), state: recState });
   updateControls();
@@ -468,11 +799,13 @@ function resumeRecording() {
   recState = 'recording';
   const intervalMs = Math.max(200, activeTimings.interval * 1000);
   captureTimer = setInterval(captureFrame, intervalMs);
+  scheduleAutoStop();
   updateControls();
   setRecordingStatus();
 }
 
 async function stopRecording() {
+  clearAutoStop();
   clearInterval(captureTimer); captureTimer = null;
   clearInterval(clockTimer); clockTimer = null;
   if (recState === 'paused') pausedAccumMs += Date.now() - pauseStartMs;
@@ -515,6 +848,7 @@ function updateControls() {
   const btn = els.recordBtn;
   document.body.classList.toggle('recording', recState === 'recording' || recState === 'paused');
   setStateDot();
+  updatePreviewHint();
 
   switch (recState) {
     case 'idle':
@@ -569,11 +903,15 @@ function saveSettingsDebounced() {
       format: getRadio('format'),
       maxDimension: Number(getRadio('res')) || 1920,
       overlay: settings.overlay,
+      blurRegions: settings.blurRegions,
       outputFolder: els.folderInput.value,
       keepFrames: els.keepFrames.checked,
       showFloatingTimer: els.floatingTimer.checked,
       stampSize: els.stampSize.value,
-      stampPosition: els.stampPos.value
+      stampPosition: els.stampPos.value,
+      autoStopHours: Number(els.autoStopHours.value) || 0,
+      checkForUpdates: els.checkForUpdates.checked,
+      dismissedVersion: settings.dismissedVersion || ''
     });
   }, 350);
 }
@@ -599,7 +937,7 @@ function applyModeToUI() {
   );
   els.sourceLabel.style.display = mode === 'webcam' ? 'none' : '';
   els.webcamLabel.style.display = mode === 'screen' ? 'none' : '';
-  els.previewHint.hidden = mode !== 'screen-overlay';
+  updateBlurUI();
 }
 
 els.modeGroup.addEventListener('click', (evt) => {
@@ -632,9 +970,25 @@ document.querySelectorAll('input[name="format"], input[name="res"]').forEach((el
   el.addEventListener('change', saveSettingsDebounced)
 );
 els.keepFrames.addEventListener('change', saveSettingsDebounced);
-for (const el of [els.floatingTimer, els.stampSize, els.stampPos]) {
+for (const el of [els.floatingTimer, els.stampSize, els.stampPos, els.autoStopHours, els.checkForUpdates]) {
   el.addEventListener('change', saveSettingsDebounced);
 }
+els.autoStopHours.addEventListener('input', saveSettingsDebounced);
+
+els.blurDrawBtn.addEventListener('click', () => {
+  if (isFullScreenBlur()) return;
+  blurModeActive = !blurModeActive;
+  if (blurModeActive) dismissCameraHint();
+  if (!blurModeActive) selectedBlurIndex = -1;
+  updateBlurUI();
+});
+els.previewHintClose.addEventListener('click', dismissCameraHint);
+els.blurFullScreenBtn.addEventListener('click', () => {
+  blurEntireScreen();
+});
+els.blurRemoveSelectedBtn.addEventListener('click', () => {
+  deleteSelectedBlur();
+});
 els.openFolderSettings.addEventListener('click', () =>
   window.lapse.openPath(els.folderInput.value)
 );
@@ -645,7 +999,19 @@ els.settingsModal.addEventListener('click', (evt) => {
   if (evt.target === els.settingsModal) els.settingsModal.hidden = true;
 });
 document.addEventListener('keydown', (evt) => {
-  if (evt.key === 'Escape') els.settingsModal.hidden = true;
+  if (evt.key === 'Escape') {
+    els.settingsModal.hidden = true;
+    if (blurModeActive) {
+      blurModeActive = false;
+      updateBlurUI();
+    }
+  }
+  if ((evt.key === 'Delete' || evt.key === 'Backspace') && selectedBlurIndex >= 0) {
+    const tag = document.activeElement && document.activeElement.tagName;
+    if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+    evt.preventDefault();
+    deleteSelectedBlur();
+  }
 });
 els.themeSelect.addEventListener('change', () => {
   settings.theme = els.themeSelect.value;
@@ -665,8 +1031,28 @@ els.resultLink.addEventListener('click', () =>
   window.lapse.showItemInFolder(els.resultLink.dataset.path)
 );
 
+function showUpdateBanner(info) {
+  pendingUpdate = info;
+  els.updateBannerText.textContent = `LapseCam ${info.version} is available.`;
+  els.updateBanner.hidden = false;
+}
+
+window.lapse.onUpdateAvailable((info) => showUpdateBanner(info));
+
+els.updateDownload.addEventListener('click', () => {
+  if (pendingUpdate) window.lapse.openExternal(pendingUpdate.url);
+});
+els.updateDismiss.addEventListener('click', () => {
+  if (pendingUpdate) {
+    settings.dismissedVersion = pendingUpdate.version;
+    window.lapse.saveSettings({ dismissedVersion: pendingUpdate.version });
+  }
+  els.updateBanner.hidden = true;
+});
+
 (async function init() {
   settings = await window.lapse.getSettings();
+  if (!Array.isArray(settings.blurRegions)) settings.blurRegions = [];
 
   els.themeSelect.value = ['purple', 'dark', 'light'].includes(settings.theme)
     ? settings.theme : 'purple';
@@ -683,9 +1069,12 @@ els.resultLink.addEventListener('click', () =>
     ? settings.stampSize : 'small';
   els.stampPos.value = ['topleft', 'topright', 'bottomleft', 'bottomright'].includes(settings.stampPosition)
     ? settings.stampPosition : 'topleft';
+  els.autoStopHours.value = settings.autoStopHours || 0;
+  els.checkForUpdates.checked = settings.checkForUpdates !== false;
 
   applyTheme();
   applyModeToUI();
+  updateBlurUI();
   updateSpeedSummary();
   updateControls();
   setStatus('Ready.');
