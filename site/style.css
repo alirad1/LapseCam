@@ -697,10 +697,9 @@ h1, h2, h3, .btn, .brand, .nav-links a, #faq summary {
   margin: 14px 0;
 }
 
-.footer-links > * + *::before {
-  content: "·";
-  margin-right: 12px;
+.footer-links .sep {
   color: var(--muted);
+  user-select: none;
 }
 
 .footer-fine { font-size: 12px; opacity: 0.8; }
