@@ -692,8 +692,15 @@ h1, h2, h3, .btn, .brand, .nav-links a, #faq summary {
 .footer-links {
   display: flex;
   justify-content: center;
-  gap: 20px;
+  align-items: center;
+  gap: 12px;
   margin: 14px 0;
+}
+
+.footer-links > * + *::before {
+  content: "•";
+  margin-right: 12px;
+  color: var(--border);
 }
 
 .footer-fine { font-size: 12px; opacity: 0.8; }
