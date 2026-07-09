@@ -698,9 +698,9 @@ h1, h2, h3, .btn, .brand, .nav-links a, #faq summary {
 }
 
 .footer-links > * + *::before {
-  content: "•";
+  content: "·";
   margin-right: 12px;
-  color: var(--border);
+  color: var(--muted);
 }
 
 .footer-fine { font-size: 12px; opacity: 0.8; }
