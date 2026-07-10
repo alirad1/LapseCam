@@ -114,4 +114,4 @@ function encode(opts, onProgress) {
   });
 }
 
-module.exports = { encode, ffmpegPath };
+module.exports = { encode };

@@ -15,7 +15,6 @@
   --accent-blue: #4a9eff;
   --rec: #ff4d5e;
   --glow: rgba(124, 92, 255, 0.25);
-  --stage-bg: #0d0d14;
   --max: 920px;
   --font: "Plus Jakarta Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
 }
@@ -245,7 +244,20 @@ h1, h2, h3, .btn, .brand, .nav-links a, #faq summary {
 
 .hero-inner {
   position: relative;
-  will-change: opacity, transform;
+}
+
+.hero-eyebrow {
+  display: inline-block;
+  margin-bottom: 16px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: rgba(124, 92, 255, 0.1);
+  border: 1px solid rgba(124, 92, 255, 0.25);
+  border-radius: 999px;
 }
 
 .hero h1 {
@@ -326,112 +338,22 @@ h1, h2, h3, .btn, .brand, .nav-links a, #faq summary {
   background: linear-gradient(90deg, var(--accent), var(--accent-blue));
 }
 
-.section-wide h2::after {
-  left: 50%;
-  transform: translateX(-50%);
-}
-
 .section > p {
   max-width: 720px;
   color: var(--muted);
   margin-bottom: 16px;
 }
 
-/* ---------------- demo ----------------
-   The demo sits on a full-height stage with no divider. The sticky panel
-   inside fades and lifts in on the way down, then fades out as you scroll on. */
-
-.demo-stage {
-  min-height: 100vh;
-  min-height: 100svh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.demo-stage .sticky-panel {
-  border-top: none;
-  padding: 32px 24px;
-  width: 100%;
-  will-change: opacity, transform;
-}
-
-@media (min-width: 861px) {
-  html.intro-motion .demo-stage .sticky-panel {
-    opacity: 0;
-  }
-}
-
-.section-wide { max-width: 1300px; }
-.section-wide h2 { text-align: center; }
-
-.demo-frame {
-  width: min(100%, calc(66vh * 16 / 9));
-  width: min(100%, calc(66svh * 16 / 9));
-  aspect-ratio: 16 / 9;
-  margin: 0 auto;
-  border: 1px solid rgba(124, 92, 255, 0.25);
-  border-radius: 14px;
-  overflow: hidden;
-  background: var(--stage-bg);
-  display: flex;
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.04) inset,
-    0 8px 40px rgba(0, 0, 0, 0.45),
-    0 0 60px rgba(124, 92, 255, 0.12);
-}
-
-.demo-frame video { width: 100%; height: 100%; }
-
-.demo-placeholder {
-  position: relative;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  background: linear-gradient(160deg, var(--panel) 0%, var(--stage-bg) 100%);
+.section-lead {
+  max-width: 720px;
   color: var(--muted);
-  font-size: 15px;
-  overflow: hidden;
+  margin: -18px 0 30px;
+  font-size: 16px;
 }
 
-.demo-placeholder::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    105deg,
-    transparent 40%,
-    rgba(124, 92, 255, 0.06) 50%,
-    transparent 60%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 4s ease-in-out infinite;
-}
-
-@keyframes shimmer {
-  0%, 100% { background-position: 200% 0; }
-  50% { background-position: -200% 0; }
-}
-
-.demo-placeholder img {
-  position: relative;
-  opacity: 0.85;
-  filter: drop-shadow(0 4px 12px rgba(124, 92, 255, 0.3));
-}
-
-.demo-placeholder p { position: relative; }
-
-.demo-caption {
-  margin-top: 16px;
-  font-size: 13px;
-  color: var(--muted);
-  text-align: center;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  font-weight: 500;
+.section-lead strong {
+  color: var(--text);
+  font-weight: 600;
 }
 
 /* ---------------- feature cards ---------------- */
@@ -616,6 +538,13 @@ h1, h2, h3, .btn, .brand, .nav-links a, #faq summary {
   color: var(--muted);
 }
 
+#faq details code {
+  font-size: 13px;
+  padding: 2px 6px;
+  background: var(--btn-bg);
+  border-radius: 4px;
+}
+
 /* ---------------- support + footer ---------------- */
 
 .support {
@@ -707,8 +636,6 @@ h1, h2, h3, .btn, .brand, .nav-links a, #faq summary {
 /* ---------------- small screens ---------------- */
 
 @media (max-width: 860px) {
-  .demo-stage { min-height: 0; }
-  .demo-stage .sticky-panel { padding: 56px 24px; }
   .support {
     margin-left: 24px;
     margin-right: 24px;
@@ -728,17 +655,8 @@ h1, h2, h3, .btn, .brand, .nav-links a, #faq summary {
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
 
-  .hero-inner,
-  .demo-stage .sticky-panel {
-    will-change: auto;
-  }
-
   .nav-progress-fill {
     transition: none;
-  }
-
-  .demo-placeholder::before {
-    animation: none;
   }
 
   .card:hover,

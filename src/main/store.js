@@ -44,4 +44,4 @@ function saveSettings(partial) {
   return merged;
 }
 
-module.exports = { getSettings, saveSettings, defaults, defaultOutputFolder };
+module.exports = { getSettings, saveSettings };
