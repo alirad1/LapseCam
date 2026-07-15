@@ -2,7 +2,7 @@
   "name": "lapsecam",
   "productName": "LapseCam",
   "version": "1.1.0",
-  "description": "Free open source time lapse recorder for Windows. Record screen, webcam, or both and turn long sessions into sped-up videos automatically.",
+  "description": "Record sped up videos of your study sessions with no editing.",
   "keywords": [
     "time lapse",
     "time lapse recorder",
