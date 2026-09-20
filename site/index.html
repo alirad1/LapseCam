@@ -56,7 +56,7 @@
         </a>
         <a class="btn ghost" href="https://paypal.me/theradicalone" target="_blank" rel="noopener">Tip on PayPal</a>
       </div>
-      <p class="hero-note">Version 1.1.0 · Windows 10 and 11 · ~90 MB</p>
+      <p class="hero-note">Version 1.2 · Windows 10/11 · ~90 MB</p>
     </div>
   </header>
 
@@ -133,6 +133,32 @@
           <p>The finished video shows up in your Videos folder a few seconds later. That's it.</p>
         </li>
       </ol>
+    </section>
+
+    <section class="section" id="verify">
+      <h2>Is it safe to install?</h2>
+      <p>
+        LapseCam isn't code signed yet, so the first time you run it Windows SmartScreen
+        shows a blue "Windows protected your PC" box. That happens to any new app without
+        an expensive signing certificate; it doesn't mean anything is wrong. Click
+        <b>More info</b>, then <b>Run anyway</b>. The whole source is public, and you can
+        confirm the file you downloaded is exactly the one I published.
+      </p>
+      <div class="verify">
+        <p class="verify-step">In PowerShell, check the file you downloaded:</p>
+        <pre class="code"><code>Get-FileHash .\LapseCam-1.2.0-setup.exe</code></pre>
+        <p class="verify-step">The SHA-256 it prints should match one of these:</p>
+        <dl class="hashes">
+          <dt>Installer</dt>
+          <dd>bd58e18d585de4f1af42b0edf8f490707a12fd87873ef9b40ed1b8d306d7a04e</dd>
+          <dt>Portable</dt>
+          <dd>da67ced9828c45846310aa4d74da4b987fad60549900817dc2be137b1ca1d6a8</dd>
+        </dl>
+        <p class="verify-note">
+          These are also published as <code>SHA256SUMS.txt</code> on the
+          <a href="https://github.com/alirad1/LapseCam/releases/latest" target="_blank" rel="noopener">GitHub release page</a>.
+        </p>
+      </div>
     </section>
 
     <section class="section" id="built">

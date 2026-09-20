@@ -45,7 +45,8 @@ function buildArgs({ sessionDir, outputFps, format, outputPath }) {
       return [
         ...input,
         '-vf', evenScale,
-        '-c:v', 'libx264', '-preset', 'medium', '-crf', '20',
+        '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20',
+        '-threads', '0',
         '-pix_fmt', 'yuv420p', '-movflags', '+faststart',
         '-an', outputPath
       ];
@@ -53,7 +54,8 @@ function buildArgs({ sessionDir, outputFps, format, outputPath }) {
       return [
         ...input,
         '-vf', evenScale,
-        '-c:v', 'libx264', '-preset', 'medium', '-crf', '20',
+        '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20',
+        '-threads', '0',
         '-pix_fmt', 'yuv420p',
         '-an', outputPath
       ];
@@ -61,7 +63,8 @@ function buildArgs({ sessionDir, outputFps, format, outputPath }) {
       return [
         ...input,
         '-vf', evenScale,
-        '-c:v', 'libvpx-vp9', '-b:v', '0', '-crf', '32', '-row-mt', '1',
+        '-c:v', 'libvpx-vp9', '-b:v', '0', '-crf', '32',
+        '-row-mt', '1', '-deadline', 'good', '-cpu-used', '4',
         '-an', outputPath
       ];
     case 'gif':
@@ -82,7 +85,7 @@ function encode(opts, onProgress) {
   const { sessionDir, frameCount, outputFps, format, outputFolder } = opts;
   return new Promise((resolve, reject) => {
     if (!frameCount || frameCount < 2) {
-      reject(new Error('Not enough frames captured (need at least 2). Record a little longer.'));
+      reject(new Error('Not enough frames yet. Record longer.'));
       return;
     }
     fs.mkdirSync(outputFolder, { recursive: true });
@@ -102,13 +105,17 @@ function encode(opts, onProgress) {
       }
     });
 
-    proc.on('error', (err) => reject(new Error(`Failed to launch ffmpeg: ${err.message}`)));
+    proc.on('error', (err) => {
+      console.error('Failed to launch ffmpeg:', err);
+      reject(new Error('Could not start the video encoder.'));
+    });
     proc.on('close', (code) => {
       if (code === 0 && fs.existsSync(outputPath)) {
         if (onProgress) onProgress(100);
         resolve(outputPath);
       } else {
-        reject(new Error(`ffmpeg exited with code ${code}:\n${stderrTail.slice(-800)}`));
+        console.error(`ffmpeg exited with code ${code}:\n${stderrTail}`);
+        reject(new Error(`Video encoding failed (code ${code}).`));
       }
     });
   });

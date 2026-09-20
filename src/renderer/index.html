@@ -9,6 +9,35 @@
 </head>
 <body data-theme="purple">
 
+  <!-- Menu bar -->
+  <div class="menubar" role="menubar">
+    <div class="menu-root">
+      <button class="menu-trigger" id="fileMenuBtn" type="button" role="menuitem" aria-haspopup="true" aria-expanded="false">File</button>
+      <div class="menu" id="fileMenu" role="menu" aria-label="File" hidden>
+        <button class="menu-item" role="menuitem" type="button" data-action="start" id="menuStart">Start Recording</button>
+        <button class="menu-item" role="menuitem" type="button" data-action="pause" id="menuPause">Pause Recording</button>
+        <button class="menu-item" role="menuitem" type="button" data-action="stop" id="menuStop">Stop &amp; Save</button>
+        <div class="menu-sep" role="separator"></div>
+        <button class="menu-item" role="menuitem" type="button" data-action="recordings">Show Recordings</button>
+        <button class="menu-item" role="menuitem" type="button" data-action="settings">Settings</button>
+        <div class="menu-sep" role="separator"></div>
+        <button class="menu-item" role="menuitem" type="button" data-action="exit">Exit</button>
+      </div>
+    </div>
+    <div class="menu-root">
+      <button class="menu-trigger" id="helpMenuBtn" type="button" role="menuitem" aria-haspopup="true" aria-expanded="false">Help</button>
+      <div class="menu" id="helpMenu" role="menu" aria-label="Help" hidden>
+        <button class="menu-item" role="menuitem" type="button" data-action="website">Visit Website</button>
+        <button class="menu-item" role="menuitem" type="button" data-action="github">View on GitHub</button>
+        <button class="menu-item" role="menuitem" type="button" data-action="update">Check for Updates</button>
+        <div class="menu-sep" role="separator"></div>
+        <button class="menu-item" role="menuitem" type="button" data-action="about">About LapseCam</button>
+      </div>
+    </div>
+    <span class="menubar-spacer"></span>
+    <span class="menubar-version" id="topbarVersion"></span>
+  </div>
+
   <!-- Preview -->
   <div class="preview-area">
     <div class="preview-stage">
@@ -109,9 +138,9 @@
     <span id="statusLine" class="status-text"></span>
     <span id="resultWrap" hidden>Saved: <button id="resultLink" class="link-btn"></button></span>
     <span class="statusbar-spacer"></span>
-    <span class="sb-stat">Elapsed <b id="elapsedStat">00:00:00</b></span>
     <span class="sb-stat">Photos <b id="framesStat">0</b></span>
     <span class="sb-stat">Video <b id="videoLenStat">0.0s</b></span>
+    <span class="sb-stat">Elapsed <b id="elapsedStat">00:00:00</b></span>
   </div>
 
   <!-- Settings dialog -->
@@ -166,6 +195,14 @@
         </label>
 
         <div class="advanced-divider">Timers</div>
+        <div class="field lock-while-recording">
+          <label for="stampContent">Video timer shows</label>
+          <select id="stampContent">
+            <option value="elapsed">Elapsed time</option>
+            <option value="clock">Date &amp; time</option>
+            <option value="both">Both</option>
+          </select>
+        </div>
         <div class="field-pair lock-while-recording">
           <div class="field">
             <label for="stampSize">Video Timer Size:</label>
@@ -213,6 +250,43 @@
           </div>
         </div>
 
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirm dialog -->
+  <div class="modal-backdrop" id="confirmModal" hidden>
+    <div class="modal confirm" role="alertdialog" aria-labelledby="confirmTitle" aria-describedby="confirmMsg">
+      <header class="modal-header"><span id="confirmTitle">Change speed?</span></header>
+      <div class="modal-body">
+        <p id="confirmMsg" class="confirm-msg"></p>
+        <div class="confirm-actions">
+          <button id="confirmCancel" class="btn" type="button">Cancel</button>
+          <button id="confirmOk" class="btn primary" type="button">Change speed</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- About dialog -->
+  <div class="modal-backdrop" id="aboutModal" hidden>
+    <div class="modal about">
+      <header class="modal-header">
+        <span>About LapseCam</span>
+        <button id="aboutX" class="modal-close" type="button" title="Close">&#10005;</button>
+      </header>
+      <div class="modal-body">
+        <div class="about-head">
+          <span class="about-name">LapseCam</span>
+          <span class="about-version" id="aboutVersion"></span>
+        </div>
+        <p class="about-tagline">Turn a study session into a short time-lapse. No editing, nothing uploaded.</p>
+        <div class="about-links">
+          <button class="link-btn" type="button" data-action="website">lapsecam.alirad.dev</button>
+          <button class="link-btn" type="button" data-action="github">Source on GitHub</button>
+          <button class="link-btn" type="button" data-action="paypal">Tip on PayPal</button>
+        </div>
+        <p class="about-fine">Made by Ali Rad · MIT licensed</p>
       </div>
     </div>
   </div>

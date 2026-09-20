@@ -1,7 +1,7 @@
 {
   "name": "lapsecam",
   "productName": "LapseCam",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Record sped up videos of your study sessions with no editing.",
   "keywords": [
     "time lapse",
@@ -21,7 +21,7 @@
   "scripts": {
     "start": "electron .",
     "icon": "node scripts/gen-icon.js",
-    "dist": "npm run icon && electron-builder --win portable nsis && node scripts/set-exe-icon.js",
+    "dist": "npm run icon && electron-builder --win portable nsis && node scripts/set-exe-icon.js && node scripts/gen-checksums.js",
     "pack": "npm run icon && electron-builder --dir && node scripts/set-exe-icon.js"
   },
   "dependencies": {

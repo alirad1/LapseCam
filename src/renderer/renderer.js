@@ -34,6 +34,7 @@ const els = {
   settingsModal: $('settingsModal'),
   settingsX: $('settingsX'),
   themeSelect: $('themeSelect'),
+  stampContent: $('stampContent'),
   intervalInput: $('intervalInput'),
   fpsInput: $('fpsInput'),
   folderInput: $('folderInput'),
@@ -52,7 +53,24 @@ const els = {
   updateBanner: $('updateBanner'),
   updateBannerText: $('updateBannerText'),
   updateDownload: $('updateDownload'),
-  updateDismiss: $('updateDismiss')
+  updateDismiss: $('updateDismiss'),
+  menuStart: $('menuStart'),
+  menuPause: $('menuPause'),
+  menuStop: $('menuStop'),
+  topbarVersion: $('topbarVersion'),
+  confirmModal: $('confirmModal'),
+  confirmMsg: $('confirmMsg'),
+  confirmOk: $('confirmOk'),
+  confirmCancel: $('confirmCancel'),
+  aboutModal: $('aboutModal'),
+  aboutX: $('aboutX'),
+  aboutVersion: $('aboutVersion')
+};
+
+const LINKS = {
+  website: 'https://lapsecam.alirad.dev',
+  github: 'https://github.com/alirad1/LapseCam',
+  paypal: 'https://www.paypal.com/paypalme/theradicalone'
 };
 
 const getRadio = (name) => document.querySelector(`input[name="${name}"]:checked`).value;
@@ -82,6 +100,9 @@ let autoStopTimer = null;
 let blurModeActive = false;
 let selectedBlurIndex = -1;
 let pendingUpdate = null;
+let speedMarker = null;
+let lastSpeedValue = null;
+let confirmResolver = null;
 let cameraHintTimer = null;
 let cameraHintDismissedSession = false;
 const CAMERA_HINT_MS = 10000;
@@ -100,6 +121,16 @@ function setStatus(msg, isError = false, italic = false) {
   els.statusLine.textContent = msg || '';
   els.statusLine.classList.toggle('error', isError);
   els.statusLine.classList.toggle('italic', italic);
+}
+
+// Turns a raw/IPC error into a short, readable message for the status bar.
+function cleanError(err) {
+  let m = err && err.message ? err.message : String(err || '');
+  m = m.replace(/Error invoking remote method '[^']*':\s*/g, '');
+  m = m.replace(/^(Error:\s*)+/, '');
+  m = m.split('\n')[0].trim();
+  if (m.length > 120) m = m.slice(0, 117) + '…';
+  return m;
 }
 
 function setStateDot() {
@@ -180,15 +211,39 @@ function applyBlurRegions(ctx, W, H) {
   }
 }
 
+function clockStrings() {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  const dateStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  let h = d.getHours();
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  const timeStr = `${h}:${pad(d.getMinutes())}:${pad(d.getSeconds())} ${ampm}`;
+  return { dateStr, timeStr };
+}
+
+function stampLines() {
+  const content = els.stampContent.value;
+  const elapsed = fmtHMS(elapsedMs());
+  if (content === 'clock' || content === 'both') {
+    const { dateStr, timeStr } = clockStrings();
+    if (content === 'clock') return [dateStr, timeStr];
+    return [`${dateStr}  ${timeStr}`, elapsed];
+  }
+  return [elapsed];
+}
+
 function drawTimeStamp(ctx, W, H) {
   const sizes = { small: 0.032, medium: 0.05, large: 0.075 };
-  const f = Math.max(12, Math.round(H * (sizes[els.stampSize.value] || 0.032)));
-  const text = fmtHMS(elapsedMs());
+  const f = Math.max(12, Math.round(H * (sizes[els.stampSize.value] || 0.05)));
+  const lines = stampLines();
   ctx.save();
   ctx.font = `600 ${f}px "Segoe UI", sans-serif`;
-  const padX = f * 0.45, padY = f * 0.28;
-  const bw = ctx.measureText(text).width + padX * 2;
-  const bh = f + padY * 2;
+  const padX = f * 0.45, padY = f * 0.28, gap = f * 0.3;
+  let textW = 0;
+  for (const line of lines) textW = Math.max(textW, ctx.measureText(line).width);
+  const bw = textW + padX * 2;
+  const bh = lines.length * f + (lines.length - 1) * gap + padY * 2;
   const margin = Math.round(H * 0.02);
   const pos = els.stampPos.value;
   const x = pos.includes('right') ? W - margin - bw : margin;
@@ -198,8 +253,33 @@ function drawTimeStamp(ctx, W, H) {
   ctx.roundRect(x, y, bw, bh, f * 0.25);
   ctx.fill();
   ctx.fillStyle = '#fff';
+  ctx.textBaseline = 'top';
+  lines.forEach((line, i) => {
+    ctx.fillText(line, x + padX, y + padY + i * (f + gap));
+  });
+  ctx.restore();
+}
+
+function drawSpeedMarker(ctx, W, H) {
+  if (!speedMarker || Date.now() > speedMarker.until) {
+    if (speedMarker && Date.now() > speedMarker.until) speedMarker = null;
+    return;
+  }
+  const f = Math.max(14, Math.round(H * 0.045));
+  ctx.save();
+  ctx.font = `600 ${f}px "Segoe UI", sans-serif`;
+  const padX = f * 0.6, padY = f * 0.4;
+  const bw = ctx.measureText(speedMarker.text).width + padX * 2;
+  const bh = f + padY * 2;
+  const x = (W - bw) / 2;
+  const y = Math.round(H * 0.06);
+  ctx.fillStyle = 'rgba(124,92,255,0.9)';
+  ctx.beginPath();
+  ctx.roundRect(x, y, bw, bh, bh / 2);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
   ctx.textBaseline = 'middle';
-  ctx.fillText(text, x + padX, y + bh / 2 + f * 0.05);
+  ctx.fillText(speedMarker.text, x + padX, y + bh / 2 + f * 0.05);
   ctx.restore();
 }
 
@@ -218,6 +298,7 @@ function composeFrame(ctx, W, H) {
   }
   if (recState === 'recording' || recState === 'paused') {
     drawTimeStamp(ctx, W, H);
+    drawSpeedMarker(ctx, W, H);
   }
 }
 
@@ -295,10 +376,10 @@ async function ensureStreams() {
     }
 
     els.previewMsg.hidden = true;
-    setStatus('Ready.');
+    setStatus('Ready');
   } catch (err) {
-    els.previewMsg.textContent = `Could not start capture: ${err.message}`;
-    setStatus(err.message, true);
+    els.previewMsg.textContent = `Couldn’t start capture. ${cleanError(err)}`;
+    setStatus(cleanError(err), true);
     throw err;
   }
 }
@@ -696,7 +777,7 @@ async function captureFrame() {
     els.framesStat.textContent = String(frameIndex);
     els.videoLenStat.textContent = `${(frameIndex / activeTimings.fps).toFixed(1)}s`;
   } catch (err) {
-    setStatus(`Could not save photo: ${err.message}`, true);
+    setStatus(`Couldn’t save photo. ${cleanError(err)}`, true);
   }
 }
 
@@ -736,7 +817,7 @@ function scheduleAutoStop() {
 async function onAutoStopFired() {
   autoStopTimer = null;
   if (recState === 'recording' || recState === 'paused') {
-    setStatus('Auto-stop limit reached — saving video…');
+    setStatus('Auto-stop reached. Saving video…');
     await stopRecording();
   }
 }
@@ -767,6 +848,7 @@ async function startRecording() {
   captureTimer = setInterval(captureFrame, intervalMs);
   startClock();
   scheduleAutoStop();
+  window.lapse.blockSleep();
 
   if (els.floatingTimer.checked) window.lapse.showOverlay();
   els.resultWrap.hidden = true;
@@ -789,9 +871,10 @@ function pauseRecording() {
   clearInterval(captureTimer); captureTimer = null;
   clearAutoStop();
   pauseStartMs = Date.now();
+  window.lapse.allowSleep();
   window.lapse.updateOverlay({ elapsed: fmtHMS(elapsedMs()), state: recState });
   updateControls();
-  setStatus('Paused.');
+  setStatus('Paused');
 }
 
 function resumeRecording() {
@@ -800,6 +883,7 @@ function resumeRecording() {
   const intervalMs = Math.max(200, activeTimings.interval * 1000);
   captureTimer = setInterval(captureFrame, intervalMs);
   scheduleAutoStop();
+  window.lapse.blockSleep();
   updateControls();
   setRecordingStatus();
 }
@@ -810,7 +894,9 @@ async function stopRecording() {
   clearInterval(clockTimer); clockTimer = null;
   if (recState === 'paused') pausedAccumMs += Date.now() - pauseStartMs;
   recState = 'encoding';
+  speedMarker = null;
   window.lapse.hideOverlay();
+  window.lapse.allowSleep();
   updateControls();
 
   const frameCount = frameIndex;
@@ -831,9 +917,9 @@ async function stopRecording() {
     els.resultWrap.hidden = false;
     els.resultLink.textContent = outputPath;
     els.resultLink.dataset.path = outputPath;
-    setStatus('Video saved.');
+    setStatus('Video saved');
   } catch (err) {
-    setStatus(`Could not create the video: ${err.message}`, true);
+    setStatus(cleanError(err), true);
     await window.lapse.discardSession(sessionDir);
   } finally {
     els.encodeArea.hidden = true;
@@ -872,6 +958,12 @@ function updateControls() {
       els.stopBtn.disabled = true;
       break;
   }
+
+  // Keep the File menu in step with the buttons.
+  els.menuStart.disabled = recState !== 'idle';
+  els.menuStop.disabled = !(recState === 'recording' || recState === 'paused');
+  els.menuPause.disabled = !(recState === 'recording' || recState === 'paused');
+  els.menuPause.textContent = recState === 'paused' ? 'Resume Recording' : 'Pause Recording';
 }
 
 els.recordBtn.addEventListener('click', () => {
@@ -909,6 +1001,7 @@ function saveSettingsDebounced() {
       showFloatingTimer: els.floatingTimer.checked,
       stampSize: els.stampSize.value,
       stampPosition: els.stampPos.value,
+      stampContent: els.stampContent.value,
       autoStopHours: Number(els.autoStopHours.value) || 0,
       checkForUpdates: els.checkForUpdates.checked,
       dismissedVersion: settings.dismissedVersion || ''
@@ -959,7 +1052,59 @@ els.webcamSelect.addEventListener('change', () => {
 });
 els.refreshSources.addEventListener('click', () => populateSources());
 
-els.speedSelect.addEventListener('change', () => {
+function confirmDialog(message) {
+  els.confirmMsg.textContent = message;
+  els.confirmModal.hidden = false;
+  els.confirmCancel.focus();
+  return new Promise((resolve) => { confirmResolver = resolve; });
+}
+
+function closeConfirm(result) {
+  if (!confirmResolver) return;
+  els.confirmModal.hidden = true;
+  const resolve = confirmResolver;
+  confirmResolver = null;
+  resolve(result);
+}
+
+els.confirmOk.addEventListener('click', () => closeConfirm(true));
+els.confirmCancel.addEventListener('click', () => closeConfirm(false));
+els.confirmModal.addEventListener('click', (evt) => {
+  if (evt.target === els.confirmModal) closeConfirm(false);
+});
+
+function applySpeedChange(timings) {
+  activeTimings.interval = timings.interval; // fps stays fixed for the session
+  if (recState === 'recording') {
+    clearInterval(captureTimer);
+    captureTimer = setInterval(captureFrame, Math.max(200, activeTimings.interval * 1000));
+    scheduleAutoStop();
+  }
+  const factor = Math.round(activeTimings.interval * activeTimings.fps);
+  speedMarker = { until: Date.now() + 2500, text: `${factor}×` };
+  if (recState === 'recording') setRecordingStatus();
+}
+
+els.speedSelect.addEventListener('change', async () => {
+  if (recState === 'recording' || recState === 'paused') {
+    const timings = effectiveTimings();
+    const factor = Math.round(timings.interval * activeTimings.fps);
+    const ok = await confirmDialog(
+      `Switch to about ${factor}× for the rest of this recording? ` +
+      `Frames already captured keep their speed.`
+    );
+    if (!ok) {
+      els.speedSelect.value = lastSpeedValue;
+      updateSpeedSummary();
+      return;
+    }
+    applySpeedChange(timings);
+    lastSpeedValue = els.speedSelect.value;
+    updateSpeedSummary();
+    saveSettingsDebounced();
+    return;
+  }
+  lastSpeedValue = els.speedSelect.value;
   updateSpeedSummary();
   saveSettingsDebounced();
 });
@@ -970,7 +1115,7 @@ document.querySelectorAll('input[name="format"], input[name="res"]').forEach((el
   el.addEventListener('change', saveSettingsDebounced)
 );
 els.keepFrames.addEventListener('change', saveSettingsDebounced);
-for (const el of [els.floatingTimer, els.stampSize, els.stampPos, els.autoStopHours, els.checkForUpdates]) {
+for (const el of [els.floatingTimer, els.stampSize, els.stampPos, els.stampContent, els.autoStopHours, els.checkForUpdates]) {
   el.addEventListener('change', saveSettingsDebounced);
 }
 els.autoStopHours.addEventListener('input', saveSettingsDebounced);
@@ -1000,6 +1145,9 @@ els.settingsModal.addEventListener('click', (evt) => {
 });
 document.addEventListener('keydown', (evt) => {
   if (evt.key === 'Escape') {
+    if (confirmResolver) { closeConfirm(false); return; }
+    if (!els.aboutModal.hidden) { els.aboutModal.hidden = true; return; }
+    if (menuOpen) { closeAllMenus(); return; }
     els.settingsModal.hidden = true;
     if (blurModeActive) {
       blurModeActive = false;
@@ -1031,6 +1179,90 @@ els.resultLink.addEventListener('click', () =>
   window.lapse.showItemInFolder(els.resultLink.dataset.path)
 );
 
+const menuRoots = [...document.querySelectorAll('.menu-root')];
+let menuOpen = false;
+
+function onDocDownMenu(evt) {
+  if (!evt.target.closest('.menu-root')) closeAllMenus();
+}
+
+function closeAllMenus() {
+  menuRoots.forEach((root) => {
+    root.querySelector('.menu').hidden = true;
+    root.querySelector('.menu-trigger').setAttribute('aria-expanded', 'false');
+  });
+  menuOpen = false;
+  document.removeEventListener('mousedown', onDocDownMenu, true);
+}
+
+function openMenu(root) {
+  menuRoots.forEach((r) => {
+    const open = r === root;
+    r.querySelector('.menu').hidden = !open;
+    r.querySelector('.menu-trigger').setAttribute('aria-expanded', String(open));
+  });
+  menuOpen = true;
+  document.addEventListener('mousedown', onDocDownMenu, true);
+}
+
+menuRoots.forEach((root) => {
+  const trigger = root.querySelector('.menu-trigger');
+  const menu = root.querySelector('.menu');
+  trigger.addEventListener('click', (evt) => {
+    evt.stopPropagation();
+    if (menu.hidden) openMenu(root);
+    else closeAllMenus();
+  });
+  // Once a menu is open, hovering a sibling switches to it (native menu-bar feel).
+  trigger.addEventListener('mouseenter', () => {
+    if (menuOpen && menu.hidden) openMenu(root);
+  });
+  menu.addEventListener('click', (evt) => {
+    const item = evt.target.closest('.menu-item');
+    if (!item || item.disabled) return;
+    closeAllMenus();
+    handleMenuAction(item.dataset.action);
+  });
+});
+
+async function runManualUpdateCheck() {
+  setStatus('Checking for updates…');
+  const res = await window.lapse.checkForUpdatesNow();
+  if (!res || res.status === 'error') {
+    setStatus('Couldn’t check for updates', true);
+  } else if (res.status === 'update') {
+    showUpdateBanner(res);
+    setStatus(`LapseCam ${res.version} is available`);
+  } else {
+    setStatus(`You’re on the latest version (${res.version})`);
+  }
+}
+
+function handleMenuAction(action) {
+  switch (action) {
+    case 'start': if (recState === 'idle') startRecording(); break;
+    case 'pause':
+      if (recState === 'recording') pauseRecording();
+      else if (recState === 'paused') resumeRecording();
+      break;
+    case 'stop': if (recState === 'recording' || recState === 'paused') stopRecording(); break;
+    case 'recordings': window.lapse.openPath(els.folderInput.value); break;
+    case 'settings': els.settingsModal.hidden = false; break;
+    case 'exit': window.close(); break;
+    case 'website': window.lapse.openExternal(LINKS.website); break;
+    case 'github': window.lapse.openExternal(LINKS.github); break;
+    case 'update': runManualUpdateCheck(); break;
+    case 'about': els.aboutModal.hidden = false; break;
+  }
+}
+
+els.aboutX.addEventListener('click', () => { els.aboutModal.hidden = true; });
+els.aboutModal.addEventListener('click', (evt) => {
+  if (evt.target === els.aboutModal) { els.aboutModal.hidden = true; return; }
+  const link = evt.target.closest('.link-btn');
+  if (link && LINKS[link.dataset.action]) window.lapse.openExternal(LINKS[link.dataset.action]);
+});
+
 function showUpdateBanner(info) {
   pendingUpdate = info;
   els.updateBannerText.textContent = `LapseCam ${info.version} is available.`;
@@ -1058,6 +1290,7 @@ els.updateDismiss.addEventListener('click', () => {
     ? settings.theme : 'purple';
   els.speedSelect.value = ['30', '60', '150', '300', '600', 'custom'].includes(String(settings.speedPreset))
     ? String(settings.speedPreset) : '150';
+  lastSpeedValue = els.speedSelect.value;
   els.intervalInput.value = settings.intervalSeconds;
   els.fpsInput.value = settings.outputFps;
   setRadio('format', settings.format);
@@ -1066,9 +1299,11 @@ els.updateDismiss.addEventListener('click', () => {
   els.folderInput.value = settings.outputFolder;
   els.floatingTimer.checked = !!settings.showFloatingTimer;
   els.stampSize.value = ['small', 'medium', 'large'].includes(settings.stampSize)
-    ? settings.stampSize : 'small';
+    ? settings.stampSize : 'medium';
   els.stampPos.value = ['topleft', 'topright', 'bottomleft', 'bottomright'].includes(settings.stampPosition)
     ? settings.stampPosition : 'topleft';
+  els.stampContent.value = ['elapsed', 'clock', 'both'].includes(settings.stampContent)
+    ? settings.stampContent : 'elapsed';
   els.autoStopHours.value = settings.autoStopHours || 0;
   els.checkForUpdates.checked = settings.checkForUpdates !== false;
 
@@ -1077,7 +1312,13 @@ els.updateDismiss.addEventListener('click', () => {
   updateBlurUI();
   updateSpeedSummary();
   updateControls();
-  setStatus('Ready.');
+  setStatus('Ready');
+
+  try {
+    const v = await window.lapse.getAppVersion();
+    els.topbarVersion.textContent = `v${v}`;
+    els.aboutVersion.textContent = `v${v}`;
+  } catch { /* version is cosmetic */ }
 
   await populateSources();
   if (settings.sourceId) els.sourceSelect.value = settings.sourceId;

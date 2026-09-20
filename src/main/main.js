@@ -1,14 +1,30 @@
 'use strict';
 
 const {
-  app, BrowserWindow, ipcMain, dialog, desktopCapturer, screen, shell, Menu, session
+  app, BrowserWindow, ipcMain, dialog, desktopCapturer, screen, shell, Menu, session,
+  powerSaveBlocker
 } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
 const { getSettings, saveSettings } = require('./store');
 const { encode } = require('./encoder');
-const { checkForUpdates } = require('./updater');
+const { checkForUpdates, checkNow } = require('./updater');
+
+// Keeps the display awake while recording. Tracked by id so repeated
+// start/stop calls never stack multiple blockers.
+let displayBlockerId = null;
+function startDisplayBlocker() {
+  if (displayBlockerId === null || !powerSaveBlocker.isStarted(displayBlockerId)) {
+    displayBlockerId = powerSaveBlocker.start('prevent-display-sleep');
+  }
+}
+function stopDisplayBlocker() {
+  if (displayBlockerId !== null && powerSaveBlocker.isStarted(displayBlockerId)) {
+    powerSaveBlocker.stop(displayBlockerId);
+  }
+  displayBlockerId = null;
+}
 
 app.setName('LapseCam');
 if (process.platform === 'win32') {
@@ -116,16 +132,25 @@ function registerIpc() {
   });
 
   ipcMain.handle('session:encode', async (_e, opts) => {
-    const outputPath = await encode(opts, (pct) => {
-      if (mainWin && !mainWin.isDestroyed()) {
-        mainWin.webContents.send('encode:progress', pct);
+    // Keep the machine awake through the whole encode so a long job isn't
+    // interrupted by sleep.
+    const encodeBlockerId = powerSaveBlocker.start('prevent-app-suspension');
+    try {
+      const outputPath = await encode(opts, (pct) => {
+        if (mainWin && !mainWin.isDestroyed()) {
+          mainWin.webContents.send('encode:progress', pct);
+        }
+      });
+      if (!opts.keepFrames) {
+        fs.rm(opts.sessionDir, { recursive: true, force: true }, () => {});
       }
-    });
-    if (!opts.keepFrames) {
-      fs.rm(opts.sessionDir, { recursive: true, force: true }, () => {});
+      currentSessionDir = null;
+      return outputPath;
+    } finally {
+      if (powerSaveBlocker.isStarted(encodeBlockerId)) {
+        powerSaveBlocker.stop(encodeBlockerId);
+      }
     }
-    currentSessionDir = null;
-    return outputPath;
   });
 
   ipcMain.handle('session:discard', (_e, sessionDir) => {
@@ -153,6 +178,12 @@ function registerIpc() {
   ipcMain.handle('shell:showItem', (_e, p) => shell.showItemInFolder(p));
   ipcMain.handle('shell:openPath', (_e, p) => shell.openPath(p));
   ipcMain.handle('shell:openExternal', (_e, url) => shell.openExternal(url));
+
+  ipcMain.on('power:block', () => startDisplayBlocker());
+  ipcMain.on('power:unblock', () => stopDisplayBlocker());
+
+  ipcMain.handle('update:checkNow', () => checkNow());
+  ipcMain.handle('app:version', () => app.getVersion());
 }
 
 function runUpdateCheck() {
@@ -182,6 +213,7 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
+  stopDisplayBlocker();
   if (currentSessionDir) {
     try { fs.rmSync(currentSessionDir, { recursive: true, force: true }); } catch {}
   }

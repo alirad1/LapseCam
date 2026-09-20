@@ -69,4 +69,23 @@ async function checkForUpdates(dismissedVersion) {
   }
 }
 
-module.exports = { checkForUpdates };
+// Manual "Check for updates" from the Help menu. Unlike the silent launch
+// check, this always reports a definite result and ignores dismissedVersion.
+async function checkNow() {
+  try {
+    const release = await fetchLatestRelease();
+    const latest = String(release.tag_name || '').replace(/^v/i, '');
+    if (latest && isNewer(latest, currentVersion)) {
+      return {
+        status: 'update',
+        version: latest,
+        url: release.html_url || `https://github.com/${REPO}/releases/latest`
+      };
+    }
+    return { status: 'current', version: currentVersion };
+  } catch {
+    return { status: 'error' };
+  }
+}
+
+module.exports = { checkForUpdates, checkNow };

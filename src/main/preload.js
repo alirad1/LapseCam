@@ -27,6 +27,12 @@ contextBridge.exposeInMainWorld('lapse', {
   openPath: (p) => ipcRenderer.invoke('shell:openPath', p),
   openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
 
+  blockSleep: () => ipcRenderer.send('power:block'),
+  allowSleep: () => ipcRenderer.send('power:unblock'),
+
+  checkForUpdatesNow: () => ipcRenderer.invoke('update:checkNow'),
+  getAppVersion: () => ipcRenderer.invoke('app:version'),
+
   onUpdateAvailable: (cb) => {
     ipcRenderer.removeAllListeners('update:available');
     ipcRenderer.on('update:available', (_e, info) => cb(info));

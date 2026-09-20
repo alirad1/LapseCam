@@ -13,6 +13,13 @@ Get the installer or portable exe from the
 The exe isn't code signed (those certs are expensive), so SmartScreen will complain
 the first time. Click "More info" then "Run anyway", or build from source below.
 
+To confirm your download is intact, compare its SHA-256 against `SHA256SUMS.txt` on the
+release:
+
+```
+Get-FileHash .\LapseCam-1.2.0-setup.exe
+```
+
 ## How it works
 
 Instead of recording full video and speeding it up later, LapseCam grabs one photo
@@ -47,17 +54,43 @@ npm start
 npm run dist
 ```
 
-Output lands in `dist/` (installer + portable exe).
+Output lands in `dist/` (installer, portable exe, and `SHA256SUMS.txt`). Upload all
+three to the GitHub release so the checksums on the site and README stay verifiable.
 
-Run `npm run icon` to regenerate `build/icon.ico`. It's a tiny script that draws
-the icon pixel by pixel so I didn't have to mess with an image editor.
+Run `npm run icon` to regenerate `build/icon.ico`. It's a tiny script that draws the
+icon pixel by pixel (matching `site/favicon.svg`) so I didn't have to mess with an
+image editor.
+
+## Code signing
+
+The download works fine, but SmartScreen warns because the exe is unsigned. Signing is
+the only thing that removes the warning. Options, cheapest first:
+
+- **SignPath Foundation** — free code signing for eligible open-source projects.
+- **Certum Open Source Code Signing** — around $70/year.
+- **Azure Trusted Signing** — around $10/month if you qualify.
+
+Once you have a certificate, add it to `build.win` in `package.json`. For a local
+`.pfx` (Certum etc.):
+
+```json
+"win": {
+  "signtoolOptions": {
+    "certificateFile": "path/to/cert.pfx",
+    "certificatePassword": "..."
+  }
+}
+```
+
+For Azure Trusted Signing, set `AZURE_*` env vars and add an `azureSignOptions` block
+per the electron-builder docs. Keep the certificate and password out of git.
 
 ## Layout
 
 ```
 src/main/       electron main process, IPC, ffmpeg
 src/renderer/   UI and capture loop
-scripts/        gen-icon.js + set-exe-icon.js (post-build branding)
+scripts/        gen-icon.js, set-exe-icon.js, gen-checksums.js (post-build)
 site/           landing page
 ```
 
